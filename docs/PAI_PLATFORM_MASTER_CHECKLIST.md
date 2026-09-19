@@ -388,6 +388,7 @@ Build only when a real lesson needs them.
 - [ ] Quartile/box-plot visualizer.
 - [ ] Regression visualizer.
 - [ ] Probability/simulation exercises.
+- [ ] More options are here [INTERACTIVE_LESSON_RECOMMENDATIONS](./INTERACTIVE_LESSON_RECOMMENDATIONS.md)
 
 ### Programming Interactives
 
@@ -412,9 +413,6 @@ Build only when a real lesson needs them.
 
 For every authored lesson:
 
-- [ ] Record lesson video.
-- [ ] Edit video.
-- [ ] Upload video to YouTube.
 - [x] Store only YouTube video ID in lesson data.
 - [x] Render responsive player.
 - [x] Use privacy-enhanced embedding where appropriate.
@@ -509,9 +507,6 @@ No account is required initially.
 
 Later:
 
-- [ ] Move larger state to IndexedDB if needed.
-- [ ] Export progress.
-- [ ] Import progress.
 - [ ] Add optional cloud sync only if student accounts are introduced.
 
 ---
@@ -519,6 +514,10 @@ Later:
 ## 11. Admin Application
 
 This is a major product milestone because it allows normal content changes without rebuilding/redeploying the app.
+
+> Items marked complete in the editor and question-bank sections below are
+> available through the protected admin API. The corresponding `/admin` browser
+> application remains unfinished.
 
 ### Admin Home
 
@@ -531,36 +530,36 @@ This is a major product milestone because it allows normal content changes witho
 
 ### Lesson Editor
 
-- [ ] Create lesson.
-- [ ] Edit lesson.
-- [ ] Archive/delete lesson safely.
-- [ ] Edit Arabic title.
-- [ ] Edit English title.
-- [ ] Edit YouTube video ID.
-- [ ] Change lesson order.
-- [ ] Change draft/published/archived status.
+- [x] Create lesson via admin API.
+- [x] Edit lesson via admin API.
+- [x] Archive/delete lesson safely via admin API.
+- [x] Edit Arabic title via admin API.
+- [x] Edit English title via admin API.
+- [x] Edit YouTube video ID via admin API.
+- [x] Change lesson order via admin API.
+- [x] Change draft/published/archived status via admin API.
 
 ### Block Editor
 
-- [ ] Add block.
-- [ ] Edit block.
-- [ ] Remove block.
-- [ ] Reorder blocks.
-- [ ] Rich-text editor.
+- [x] Add block via admin API.
+- [x] Edit block via admin API.
+- [x] Remove block via admin API.
+- [x] Reorder blocks via admin API.
+- [x] Rich-text block authoring via admin API.
 - [ ] Image selector/uploader.
-- [ ] Code block editor.
-- [ ] Callout editor.
-- [ ] Interactive selector.
-- [ ] Interactive configuration editor.
+- [x] Code block authoring via admin API.
+- [x] Callout block authoring via admin API.
+- [x] Interactive type selection via admin API.
+- [x] Interactive configuration authoring via admin API.
 - [ ] Lesson preview.
 
 ### Publishing
 
-- [ ] Save draft.
-- [ ] Preview draft.
-- [ ] Publish.
-- [ ] Unpublish.
-- [ ] Archive.
+- [x] Save draft via admin API.
+- [x] Retrieve draft content for API-based preview.
+- [x] Publish via admin API.
+- [x] Unpublish via admin API.
+- [x] Archive via admin API.
 - [x] Ensure public API never exposes drafts.
 - [x] Track update timestamps.
 - [ ] Consider content revision history later.
@@ -572,31 +571,31 @@ This is a major product milestone because it allows normal content changes witho
 ### Question Management
 
 - [ ] Display question list.
-- [ ] Search questions.
-- [ ] Filter by course.
-- [ ] Filter by lesson.
-- [ ] Filter by type.
-- [ ] Filter by difficulty.
-- [ ] Filter by publication status.
+- [x] Search questions via admin API.
+- [x] Filter by course via admin API.
+- [x] Filter by lesson via admin API.
+- [x] Filter by type via admin API.
+- [x] Filter by difficulty via admin API.
+- [x] Filter by publication status via admin API.
 
 ### Question Editor
 
-- [ ] Create MCQ.
-- [ ] Create true/false.
-- [ ] Create short-answer question.
-- [ ] Edit Arabic prompt.
-- [ ] Edit English prompt.
-- [ ] Edit answer.
-- [ ] Edit Arabic explanation.
-- [ ] Edit English explanation.
-- [ ] Set difficulty.
-- [ ] Assign one lesson.
-- [ ] Assign multiple lessons.
-- [ ] Make question course-wide.
+- [x] Create MCQ via admin API.
+- [x] Create true/false via admin API.
+- [x] Create short-answer question via admin API.
+- [x] Edit Arabic prompt via admin API.
+- [x] Edit English prompt via admin API.
+- [x] Edit answer via admin API.
+- [x] Edit Arabic explanation via admin API.
+- [x] Edit English explanation via admin API.
+- [x] Set difficulty via admin API.
+- [x] Assign one lesson via admin API.
+- [x] Assign multiple lessons via admin API.
+- [x] Make question course-wide via admin API.
 - [ ] Preview question.
-- [ ] Publish/unpublish.
-- [ ] Duplicate question.
-- [ ] Archive/delete safely.
+- [x] Publish/unpublish via admin API.
+- [x] Duplicate question via admin API.
+- [x] Archive/delete safely via admin API.
 
 ---
 
@@ -605,9 +604,9 @@ This is a major product milestone because it allows normal content changes witho
 Initial approach:
 
 - [ ] Protect admin application.
-- [ ] Protect all write APIs.
+- [x] Protect all write APIs.
 - [x] Ensure public users cannot modify D1.
-- [ ] Validate every write operation.
+- [x] Validate every write operation.
 - [ ] Add upload restrictions.
 - [ ] Review CSRF needs if cookie/session auth is added.
 - [ ] Add rate limiting to sensitive endpoints if useful.
@@ -1036,10 +1035,10 @@ Do **not** make these prerequisites for launch:
 ## Milestone 4 — Admin CMS
 
 - [ ] Protect admin.
-- [ ] Course management.
-- [ ] Lesson management.
-- [ ] Block editor.
-- [ ] Question-bank editor.
+- [x] Course management API.
+- [x] Lesson management API.
+- [x] Block authoring API.
+- [x] Question-bank authoring API.
 - [ ] R2 image/file uploads.
 - [ ] Draft/preview/publish workflow.
 - [x] Public API remains published-content-only.
@@ -1093,7 +1092,7 @@ A reasonable first release is ready when:
 - [x] Lesson pages support video, static material, and optional interactives.
 - [ ] Students can practice lesson/multi-lesson/course question banks.
 - [x] Student progress survives refreshes locally.
-- [ ] Admin writes are protected.
+- [x] Admin writes are protected.
 - [ ] At least a useful initial set of real lessons has been published.
 - [ ] Mobile experience is usable.
 - [ ] Critical errors/security issues have been addressed.

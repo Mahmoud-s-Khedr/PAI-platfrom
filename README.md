@@ -20,6 +20,7 @@ This repository uses npm and includes `package-lock.json`.
 npm install
 npm run db:migrate:local
 npm run db:seed:local
+npm run db:bootstrap-admin:local
 npm run dev
 ```
 
@@ -35,9 +36,9 @@ npm run preview
 npm run cf-types
 ```
 
-`npm run db:migrate:local` is safe to re-run. The idempotent development seed is `npm run db:seed:local`.
+`npm run db:migrate:local` is safe to re-run. The idempotent development seed is `npm run db:seed:local`. Configure the ignored `.dev.vars` first, then use `npm run db:bootstrap-admin:local` to seed the initial admin's password hash; see [authentication setup](docs/AUTHENTICATION.md).
 
-## Read API
+## Public read API
 
 - `GET /api/health`
 - `GET /api/courses`
@@ -48,7 +49,15 @@ npm run cf-types
 - `GET /api/questions?lessons=<id>,<id>`
 - `GET /api/questions?course=<course-slug>`
 
-All routes are read-only. Bad input and missing resources use a JSON error object with `error.code` and `error.message`. See [database documentation](docs/DATABASE.md) for course-wide question semantics.
+These public routes are read-only and expose published content only. Bad input and missing resources use a JSON error object with `error.code` and `error.message`. See [database documentation](docs/DATABASE.md) for course-wide question semantics.
+
+## Admin API
+
+Protected authoring endpoints live under `/api/admin/*`; they cover course,
+lesson, lesson-block, and question-bank management. They require a Google or
+email/password session for a locally assigned `admin` user; browser bearer tokens and
+Cloudflare Access identities are not accepted. See the [authentication setup
+guide](docs/AUTHENTICATION.md) and [admin API guide](docs/ADMIN_API.md).
 
 ## Cloudflare D1 setup and deployment
 

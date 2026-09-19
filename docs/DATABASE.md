@@ -1,6 +1,6 @@
 # Database
 
-All Phase 1 schema lives in `migrations/0001_initial_schema.sql`. Timestamps are UTC-compatible SQLite `CURRENT_TIMESTAMP` text values. Foreign keys are enabled in the migration and every relation has a foreign-key constraint.
+The Phase 1 content schema lives in `migrations/0001_initial_schema.sql`; authentication is added by the immutable `migrations/0002_auth.sql`. Timestamps are UTC-compatible SQLite `CURRENT_TIMESTAMP` text values. Foreign keys are enabled in the migrations and every relation has a foreign-key constraint.
 
 | Table | Purpose | Important constraints / relationships |
 | --- | --- | --- |
@@ -8,8 +8,11 @@ All Phase 1 schema lives in `migrations/0001_initial_schema.sql`. Timestamps are
 | `lessons` | Bilingual course lessons | `course_id → courses.id`; unique `(course_id, slug)`; nullable `youtube_video_id` stores only the YouTube ID. |
 | `lesson_blocks` | Ordered generic lesson content | `lesson_id → lessons.id`; constrained initial block types; one `data_json` payload instead of per-block tables. |
 | `questions` | Generic question-bank records | `course_id → courses.id`; constrained initial types; JSON prompt, answer, and explanation. |
-| `question_lessons` | Optional question-to-lesson scoping | Composite PK `(question_id, lesson_id)` and cascading foreign keys. |
+| `question_lessons` | Optional question-to-lesson scoping | Composite PK `(question_id, lesson_id)`, cascading foreign keys, and a trigger requiring the question and lesson to have the same course. |
 | `assets` | Future R2 object metadata | Unique object `key`, MIME type, and JSON metadata. It does not hold a file or a redundant URL. |
+| `role_grants` | Deployment-time authorization grants | Normalized email to `admin` or `student`; it is the runtime source of truth and is not demo course content. |
+| `users` | Local authenticated identities | Optional immutable Google subject, unique email, display name, optional salted password hash, and a cached role. |
+| `sessions` | Opaque browser sessions | SHA-256 token hash, user relation, expiry, and supporting lookup indexes; plaintext session tokens never enter D1. |
 
 Indexes cover course/lesson ordering, lesson-block ordering, course question status, and both directions of question-to-lesson lookup.
 

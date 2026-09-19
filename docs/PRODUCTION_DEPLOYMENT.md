@@ -14,6 +14,7 @@ npm run build
 ```
 
 Do not seed production with the demo SQL unless a temporary demonstration site is intentional. The seed contains clearly marked development content, not authored curriculum content.
+Administrator credentials are provisioned separately with the password-hash bootstrap command in [Authentication](AUTHENTICATION.md); never put a plaintext password in a migration, SQL seed, or `wrangler.jsonc`.
 
 ## One-time Cloudflare setup
 
@@ -68,6 +69,13 @@ For an intentionally temporary demo database only, load the demo records:
 npm run db:seed:remote
 ```
 
+After the migration, bootstrap an administrator using credentials supplied from
+a protected terminal or CI secret store:
+
+```bash
+ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD='a unique production password' npm run db:bootstrap-admin:remote
+```
+
 ## Deploy
 
 Perform a Cloudflare deployment dry run first:
@@ -119,4 +127,6 @@ For every release:
 4. Deploy.
 5. Verify `/api/health` and critical student routes.
 
-This project currently has no production secrets or R2 binding. When either is added, configure secrets with `wrangler secret put` and add R2 bindings to `wrangler.jsonc`; do not store credentials in the repository.
+Google OAuth and session configuration use Worker secrets; set them with
+`wrangler secret put` as described in [Authentication](AUTHENTICATION.md). Do
+not store credentials in the repository. R2 remains out of scope for Phase 1.

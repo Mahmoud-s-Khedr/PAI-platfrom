@@ -1,0 +1,9 @@
+# Local Worker-only secrets. Copy to .dev.vars and replace every value.
+# Do not expose these through Vite variables or commit .dev.vars.
+GOOGLE_CLIENT_ID=your-google-oauth-web-client-id
+GOOGLE_CLIENT_SECRET=your-google-oauth-web-client-secret
+SESSION_SECRET=generate-a-random-secret-with-at-least-32-characters
+# Used only by `npm run db:bootstrap-admin:local`; the password is never sent
+# to the Worker and only its salted hash is stored in D1.
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=replace-with-a-unique-password-of-at-least-12-characters

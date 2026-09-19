@@ -15,6 +15,7 @@ From the repository root:
 npm install
 npm run db:migrate:local
 npm run db:seed:local
+npm run db:bootstrap-admin:local
 npm run dev
 ```
 
@@ -55,12 +56,13 @@ Use these commands after pulling changes:
 npm install
 npm run db:migrate:local
 npm run db:seed:local
+npm run db:bootstrap-admin:local
 npm test
 npm run typecheck
 npm run dev
 ```
 
-The seed script is idempotent and contains development/demo material only. Do not add textbook extracts to it.
+The seed script is idempotent and contains development/demo material only. Do not add textbook extracts to it. The separate admin bootstrap command reads `ADMIN_EMAIL` and `ADMIN_PASSWORD` from the ignored `.dev.vars`, stores only a password hash in local D1, and may be rerun to rotate that local credential.
 
 To preview a production build locally:
 

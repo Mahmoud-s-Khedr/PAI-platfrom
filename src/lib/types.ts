@@ -48,3 +48,58 @@ export interface Question {
 export interface ApiError {
   error: { code: string; message: string };
 }
+
+export type UserRole = "admin" | "student";
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  displayName: string;
+  role: UserRole;
+}
+
+export interface SessionResponse {
+  user: AuthUser | null;
+}
+
+/** Content-management representations are only returned by protected admin APIs. */
+export interface AdminCourse extends Course {
+  status: ContentStatus;
+  lessonCount: number;
+  questionCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminLessonBlock extends LessonBlock {
+  sortOrder: number;
+}
+
+export interface AdminLessonSummary extends LessonSummary {
+  status: ContentStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminLesson extends AdminLessonSummary {
+  blocks: AdminLessonBlock[];
+}
+
+export interface AdminQuestion extends Question {
+  status: ContentStatus;
+  lessonIds: number[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminDashboardLesson extends AdminLessonSummary {
+  directQuestionCount: number;
+}
+
+export interface AdminDashboardCourse extends AdminCourse {
+  lessons: AdminDashboardLesson[];
+}
+
+export interface AdminDashboard {
+  courses: AdminDashboardCourse[];
+}
