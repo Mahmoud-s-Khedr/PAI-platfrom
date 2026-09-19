@@ -13,6 +13,16 @@ All Phase 1 schema lives in `migrations/0001_initial_schema.sql`. Timestamps are
 
 Indexes cover course/lesson ordering, lesson-block ordering, course question status, and both directions of question-to-lesson lookup.
 
+## JSON validation at the mapping boundary
+
+Database JSON is treated as untrusted. Before it is returned through the public API, the Worker parses and validates every `lesson_blocks.data_json` payload against its block type and every question `prompt_json`, `answer_json`, and `explanation_json` payload against its question type. A malformed block is retained with `data: null` so the client can display its existing safe fallback; a malformed question is omitted from the public result. No stored JSON is executed or rendered as HTML.
+
+The initial Phase 1 block set intentionally excludes downloads. Adding a download block requires a separately scoped asset-delivery flow rather than storing or serving files from D1.
+
+## Local verification
+
+On 2026-09-19, the migration was applied to an empty isolated local D1 persistence directory, then `scripts/seed.sql` ran successfully. The resulting database contained 2 courses, 1 lesson, 5 lesson blocks, 4 questions, and 3 question-to-lesson mappings. `EXPLAIN QUERY PLAN` confirmed the representative public course, lesson-block, course-question, and lesson-question queries use the course/order, block/order, and course/status indexes (with primary-key lookups for the relationship joins).
+
 ## Question scope semantics
 
 `questions.course_id` always establishes the owning course.

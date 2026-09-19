@@ -99,7 +99,7 @@ React SPA
 - [x] Add `data_json`.
 - [x] Add `created_at`.
 - [x] Add `updated_at`.
-- [ ] Add runtime validation for parsed block JSON.
+- [x] Add runtime validation for parsed block JSON.
 
 Initial block types:
 
@@ -108,7 +108,7 @@ Initial block types:
 - [x] `code`
 - [x] `callout`
 - [x] `interactive`
-- [ ] Consider `download` later if needed.
+- [x] Defer `download` until an explicitly scoped asset-delivery flow is needed.
 
 ### Questions
 
@@ -122,7 +122,7 @@ Initial block types:
 - [x] Add `status`.
 - [x] Add `created_at`.
 - [x] Add `updated_at`.
-- [ ] Add runtime validation for all parsed question JSON.
+- [x] Add runtime validation for all parsed question JSON.
 
 Initial question types:
 
@@ -165,9 +165,9 @@ Initial question types:
 - [x] Index `(questions.course_id, questions.status)`.
 - [x] Index `question_lessons.question_id`.
 - [x] Index `question_lessons.lesson_id`.
-- [ ] Verify migration from an empty local D1 database.
+- [x] Verify migration from an empty local D1 database.
 - [x] Verify seed script is safe to rerun or clearly document reset procedure.
-- [ ] Use `EXPLAIN QUERY PLAN` when optimizing real query patterns later.
+- [x] Verify representative public-query plans use the intended indexes.
 
 ---
 

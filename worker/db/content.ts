@@ -1,4 +1,5 @@
 import type { Course, Lesson, LessonBlock, LessonSummary, LocalizedText, Question, QuestionType } from "../../src/lib/types";
+import { z } from "zod";
 import { parseJson } from "../lib/json";
 
 interface CourseRow extends Record<string, unknown> {
@@ -30,21 +31,41 @@ interface BlockRow extends Record<string, unknown> {
 interface QuestionRow extends Record<string, unknown> {
   id: number;
   course_id: number;
-  type: QuestionType;
+  type: string;
   prompt_json: string;
   answer_json: string;
   explanation_json: string;
   difficulty: string;
 }
 
-function localized(value: unknown): LocalizedText {
-  if (typeof value !== "object" || value === null) return { ar: "", en: "" };
-  const input = value as Record<string, unknown>;
-  return {
-    ar: typeof input.ar === "string" ? input.ar : "",
-    en: typeof input.en === "string" ? input.en : "",
-  };
-}
+const localizedTextSchema = z.object({ ar: z.string(), en: z.string() });
+const lessonBlockTypeSchema = z.enum(["rich-text", "image", "code", "callout", "interactive"]);
+const blockDataSchemas = {
+  "rich-text": localizedTextSchema,
+  image: z.object({
+    src: z.string(),
+    alt: localizedTextSchema.optional(),
+    caption: localizedTextSchema.optional(),
+  }),
+  code: z.object({ language: z.string().optional(), code: z.string() }),
+  callout: localizedTextSchema.extend({ tone: z.string().optional() }),
+  interactive: z.object({ component: z.string(), props: z.record(z.string(), z.unknown()).optional() }),
+} satisfies Record<z.infer<typeof lessonBlockTypeSchema>, z.ZodType>;
+
+const questionTypeSchema = z.enum(["mcq", "true_false", "short_answer"]);
+const mcqAnswerSchema = z.object({
+  choices: z.object({ ar: z.array(z.string()).min(1), en: z.array(z.string()).min(1) }),
+  correctIndex: z.number().int().nonnegative(),
+}).superRefine((answer, context) => {
+  if (answer.correctIndex >= answer.choices.ar.length || answer.correctIndex >= answer.choices.en.length) {
+    context.addIssue({ code: "custom", message: "correctIndex must exist in both localized choice lists" });
+  }
+});
+const answerSchemas = {
+  mcq: mcqAnswerSchema,
+  true_false: z.object({ correct: z.boolean() }),
+  short_answer: z.object({ acceptedAnswers: z.array(z.string()).min(1) }),
+} satisfies Record<QuestionType, z.ZodType>;
 
 export function toCourse(row: CourseRow): Course {
   return {
@@ -68,23 +89,40 @@ export function toLessonSummary(row: LessonRow): LessonSummary {
 }
 
 export function toBlock(row: BlockRow): LessonBlock {
-  return { id: row.id, type: row.type, data: parseJson(row.data_json) };
+  const rawType = typeof row.type === "string" ? row.type : "unknown";
+  const type = lessonBlockTypeSchema.safeParse(rawType);
+  if (!type.success) return { id: row.id, type: rawType, data: null };
+  const data = blockDataSchemas[type.data].safeParse(parseJson(row.data_json));
+  return { id: row.id, type: type.data, data: data.success ? data.data : null };
 }
 
 export function toLesson(row: LessonRow, blocks: BlockRow[]): Lesson {
   return { ...toLessonSummary(row), blocks: blocks.map(toBlock) };
 }
 
-export function toQuestion(row: QuestionRow): Question {
+export function toQuestion(row: QuestionRow): Question | null {
+  const type = questionTypeSchema.safeParse(row.type);
+  if (!type.success) return null;
+  const prompt = localizedTextSchema.safeParse(parseJson(row.prompt_json));
+  const answer = answerSchemas[type.data].safeParse(parseJson(row.answer_json));
+  const explanation = localizedTextSchema.safeParse(parseJson(row.explanation_json));
+  if (!prompt.success || !answer.success || !explanation.success) return null;
   return {
     id: row.id,
     courseId: row.course_id,
-    type: row.type,
-    prompt: localized(parseJson(row.prompt_json)),
-    answer: parseJson(row.answer_json),
-    explanation: localized(parseJson(row.explanation_json)),
+    type: type.data,
+    prompt: prompt.data,
+    answer: answer.data,
+    explanation: explanation.data,
     difficulty: row.difficulty,
   };
+}
+
+function validQuestions(rows: QuestionRow[]): Question[] {
+  return rows.flatMap((row) => {
+    const question = toQuestion(row);
+    return question ? [question] : [];
+  });
 }
 
 export async function listPublishedCourses(db: D1Database): Promise<Course[]> {
@@ -132,12 +170,12 @@ export async function listQuestionsForLessons(db: D1Database, lessonIds: number[
     WHERE q.status = 'published' AND l.status = 'published' AND c.status = 'published'
       AND q.course_id = l.course_id AND ql.lesson_id IN (${placeholders})
     ORDER BY q.id`).bind(...lessonIds).all<QuestionRow>();
-  return result.results.map(toQuestion);
+  return validQuestions(result.results);
 }
 
 // Course queries intentionally include both mapped questions and zero-mapping (course-wide) questions.
 export async function listQuestionsForCourse(db: D1Database, courseId: number): Promise<Question[]> {
   const result = await db.prepare(`SELECT id, course_id, type, prompt_json, answer_json, explanation_json, difficulty
     FROM questions WHERE course_id = ? AND status = 'published' ORDER BY id`).bind(courseId).all<QuestionRow>();
-  return result.results.map(toQuestion);
+  return validQuestions(result.results);
 }

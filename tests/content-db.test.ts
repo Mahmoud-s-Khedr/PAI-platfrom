@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isSupportedLessonBlockType } from "../src/lesson-blocks/lesson-block";
-import { findPublishedLesson, listPublishedLessons, listQuestionsForCourse, listQuestionsForLessons, toLesson } from "../worker/db/content";
+import { findPublishedLesson, listPublishedLessons, listQuestionsForCourse, listQuestionsForLessons, toBlock, toLesson, toQuestion } from "../worker/db/content";
 
 class CapturingDb {
   query = "";
@@ -39,6 +39,11 @@ describe("content data access", () => {
     ]);
     expect(lesson.blocks.map((block) => block.type)).toEqual(["code", "interactive"]);
   });
+  it("contains malformed block JSON instead of exposing it as trusted data", () => {
+    expect(toBlock({ id: 1, type: "code", data_json: '{"code":false}' }).data).toBeNull();
+    expect(toBlock({ id: 2, type: "code", data_json: "not-json" }).data).toBeNull();
+    expect(toBlock({ id: 2, type: "future-block", data_json: "{}" })).toMatchObject({ type: "future-block", data: null });
+  });
   it("requires a published parent course when loading a published lesson directly", async () => {
     const db = new CapturingDb([{ id: 1, course_id: 1, slug: "demo", title_ar: "تجريبي", title_en: "Demo", youtube_video_id: null, sort_order: 1 }]);
     await findPublishedLesson(db as unknown as D1Database, 1);
@@ -46,7 +51,7 @@ describe("content data access", () => {
     expect(db.queries[0]).toContain("c.status = 'published'");
   });
   it("uses DISTINCT for multiple lesson question scopes", async () => {
-    const db = new CapturingDb([{ id: 8, course_id: 1, type: "mcq", prompt_json: '{"ar":"س","en":"Q"}', answer_json: "{}", explanation_json: '{"ar":"ش","en":"E"}', difficulty: "beginner" }]);
+    const db = new CapturingDb([{ id: 8, course_id: 1, type: "mcq", prompt_json: '{"ar":"س","en":"Q"}', answer_json: '{"choices":{"ar":["أ"],"en":["A"]},"correctIndex":0}', explanation_json: '{"ar":"ش","en":"E"}', difficulty: "beginner" }]);
     const questions = await listQuestionsForLessons(db as unknown as D1Database, [1, 2]);
     expect(db.query).toContain("SELECT DISTINCT");
     expect(db.query).toContain("INNER JOIN lessons l");
@@ -62,6 +67,11 @@ describe("content data access", () => {
     const questions = await listQuestionsForCourse(db as unknown as D1Database, 1);
     expect(db.query).not.toContain("question_lessons");
     expect(questions[0].id).toBe(4);
+  });
+  it("omits questions with malformed stored JSON", () => {
+    const row = { id: 1, course_id: 1, type: "mcq", prompt_json: '{"ar":"س","en":"Q"}', answer_json: '{"choices":{"ar":["أ"],"en":["A"]},"correctIndex":2}', explanation_json: '{"ar":"ش","en":"E"}', difficulty: "beginner" };
+    expect(toQuestion(row)).toBeNull();
+    expect(toQuestion({ ...row, answer_json: "not-json" })).toBeNull();
   });
   it("marks unsupported blocks for graceful fallback", () => {
     expect(isSupportedLessonBlockType("rich-text")).toBe(true);
