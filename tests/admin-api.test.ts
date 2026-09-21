@@ -12,7 +12,7 @@ class AdminDb {
       this.values.push(values);
       return {
         first: async () => query.includes("FROM sessions") ? ({ id: 1, email: "person@example.com", display_name: "Person", role: this.role }) : null,
-        all: async () => query.includes("FROM question_lessons") ? { results: [] } : { results: [{ id: 3, course_id: 1, type: "true_false", prompt_json: '{"ar":"س","en":"Question"}', answer_json: '{"correct":true}', explanation_json: '{"ar":"ش","en":"Explanation"}', difficulty: "beginner", status: "draft", created_at: "2026-01-01 00:00:00", updated_at: "2026-01-02 00:00:00" }] },
+        all: async () => query.includes("FROM question_lessons") ? { results: [] } : { results: [{ id: 3, course_id: 1, type: "true_false", prompt_json: '{"ar":"س","en":"Question"}', answer_json: '{"correct":true}', explanation_json: '{"ar":"ش","en":"Explanation"}', difficulty: "easy", status: "draft", created_at: "2026-01-01 00:00:00", updated_at: "2026-01-02 00:00:00" }] },
       };
     } };
   }
@@ -33,6 +33,25 @@ class InvariantDb {
       },
       all: async () => ({ results: [] }),
       run: async () => ({}),
+    }) };
+  }
+}
+
+class PublishingDb {
+  private status = "draft";
+  prepare(query: string) {
+    return { bind: (...values: unknown[]) => ({
+      first: async () => {
+        if (query.includes("FROM sessions")) return { id: 1, email: "admin@example.com", display_name: "Admin", role: "admin" };
+        if (query.includes("FROM lessons WHERE id")) return { id: 4, course_id: 1, slug: "pilot", title_ar: "درس", title_en: "Lesson", youtube_video_id: "abc123", sort_order: 1, status: this.status, created_at: "2026-01-01 00:00:00", updated_at: "2026-01-01 00:00:00" };
+        if (query.includes("FROM courses WHERE id")) return { id: 1 };
+        return null;
+      },
+      all: async () => {
+        if (query.includes("FROM lesson_blocks")) return { results: [] };
+        return { results: [] };
+      },
+      run: async () => { if (query.startsWith("UPDATE lessons SET")) this.status = String(values[6]); return {}; },
     }) };
   }
 }
@@ -63,6 +82,12 @@ describe("admin API protection", () => {
     await expect(response.json()).resolves.toEqual({ error: { code: "INVALID_REQUEST_BODY", message: "Request body is invalid" } });
   });
 
+  it("rejects an invalid asset upload before it can reach R2", async () => {
+    const response = await app.request("http://test/api/admin/assets", { method: "POST", headers: { ...sessionHeaders, "Content-Type": "application/json" }, body: "{}" }, { DB: new AdminDb("admin") } as unknown as Cloudflare.Env);
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: { code: "INVALID_ASSET_UPLOAD", message: "Upload must be multipart form data" } });
+  });
+
   it("supports escaped prompt search only for an admin session", async () => {
     const db = new AdminDb("admin");
     const response = await app.request("http://test/api/admin/questions?search=100%_match", { headers: sessionHeaders }, { DB: db } as unknown as Cloudflare.Env);
@@ -91,6 +116,33 @@ describe("admin API protection", () => {
     }, { DB: new InvariantDb() } as unknown as Cloudflare.Env);
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toEqual({ error: { code: "BLOCK_SORT_ORDER_CONFLICT", message: "Another block already uses this sort order" } });
+  });
+
+  it("rejects unsupported difficulty", async () => {
+    const badDifficulty = await app.request("http://test/api/admin/questions", { method: "POST", headers: { ...sessionHeaders, "Content-Type": "application/json" }, body: JSON.stringify({ courseId: 1, type: "true_false", prompt: { ar: "س", en: "Q" }, answer: { correct: true }, explanation: { ar: "ش", en: "E" }, difficulty: "beginner", status: "draft", lessonIds: [] }) }, { DB: new AdminDb("admin") } as unknown as Cloudflare.Env);
+    expect(badDifficulty.status).toBe(400);
+  });
+
+  it("lets the sole admin publish a lesson without editorial self-approval", async () => {
+    const base = { courseId: 1, slug: "pilot", title: { ar: "درس", en: "Lesson" }, youtubeVideoId: "abc123", status: "published", sortOrder: 1 };
+    const published = await app.request("http://test/api/admin/lessons/4", { method: "PATCH", headers: { ...sessionHeaders, "Content-Type": "application/json" }, body: JSON.stringify(base) }, { DB: new PublishingDb() } as unknown as Cloudflare.Env);
+    expect(published.status).toBe(200);
+    await expect(published.json()).resolves.toEqual(expect.objectContaining({ status: "published" }));
+  });
+});
+
+describe("asset delivery", () => {
+  it("streams only a D1-tracked image with defensive response headers", async () => {
+    const db = {
+      prepare: (query: string) => ({ bind: () => ({ first: async () => query.includes("FROM assets") ? ({ id: 9, key: "assets/image/00000000-0000-0000-0000-000000000000.png", mime_type: "image/png", metadata_json: '{"kind":"image","fileName":"safe.png","size":4}', created_at: "2026-01-01 00:00:00", linked_block_count: 0 }) : null }) }),
+    } as unknown as D1Database;
+    const bucket = { get: async () => ({ body: new Blob(["safe"]).stream(), httpEtag: '"etag"' }) } as unknown as R2Bucket;
+    const response = await app.request("http://test/api/assets/9", undefined, { DB: db, ASSET_BUCKET: bucket } as unknown as Cloudflare.Env);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("image/png");
+    expect(response.headers.get("Content-Disposition")).toBe('inline; filename="safe.png"');
+    expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    await expect(response.text()).resolves.toBe("safe");
   });
 });
 

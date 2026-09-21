@@ -1,4 +1,4 @@
-import type { Course, Lesson, LessonBlock, LessonSummary, LocalizedText, Question, QuestionType } from "../../src/lib/types";
+import type { Course, Lesson, LessonBlock, LessonSummary, LocalizedText, Question, QuestionDifficulty, QuestionType } from "../../src/lib/types";
 import { z } from "zod";
 import { parseJson } from "../lib/json";
 
@@ -53,6 +53,7 @@ const blockDataSchemas = {
 } satisfies Record<z.infer<typeof lessonBlockTypeSchema>, z.ZodType>;
 
 const questionTypeSchema = z.enum(["mcq", "true_false", "short_answer"]);
+const questionDifficultySchema = z.enum(["easy", "medium", "hard"]);
 const mcqAnswerSchema = z.object({
   choices: z.object({ ar: z.array(z.string()).min(1), en: z.array(z.string()).min(1) }),
   correctIndex: z.number().int().nonnegative(),
@@ -106,7 +107,8 @@ export function toQuestion(row: QuestionRow): Question | null {
   const prompt = localizedTextSchema.safeParse(parseJson(row.prompt_json));
   const answer = answerSchemas[type.data].safeParse(parseJson(row.answer_json));
   const explanation = localizedTextSchema.safeParse(parseJson(row.explanation_json));
-  if (!prompt.success || !answer.success || !explanation.success) return null;
+  const difficulty = questionDifficultySchema.safeParse(row.difficulty);
+  if (!prompt.success || !answer.success || !explanation.success || !difficulty.success) return null;
   return {
     id: row.id,
     courseId: row.course_id,
@@ -114,7 +116,7 @@ export function toQuestion(row: QuestionRow): Question | null {
     prompt: prompt.data,
     answer: answer.data,
     explanation: explanation.data,
-    difficulty: row.difficulty,
+    difficulty: difficulty.data,
   };
 }
 

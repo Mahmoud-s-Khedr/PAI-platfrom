@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { registeredInteractiveComponentIds } from "./component-ids";
+
+export { registeredInteractiveComponentIds } from "./component-ids";
 
 export function BinaryConverter(_: { props: Record<string, unknown> }) {
   const [value, setValue] = useState("10");

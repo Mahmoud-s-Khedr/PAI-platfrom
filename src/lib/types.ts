@@ -2,6 +2,8 @@ export type Language = "ar" | "en";
 export type ContentStatus = "draft" | "published" | "archived";
 export type LessonBlockType = "rich-text" | "image" | "code" | "callout" | "interactive";
 export type QuestionType = "mcq" | "true_false" | "short_answer";
+export type QuestionDifficulty = "easy" | "medium" | "hard";
+export type AssetKind = "image" | "worksheet" | "dataset" | "resource";
 
 export interface LocalizedText {
   ar: string;
@@ -42,7 +44,7 @@ export interface Question {
   prompt: LocalizedText;
   answer: unknown;
   explanation: LocalizedText;
-  difficulty: string;
+  difficulty: QuestionDifficulty;
 }
 
 export interface ApiError {
@@ -102,4 +104,60 @@ export interface AdminDashboardCourse extends AdminCourse {
 
 export interface AdminDashboard {
   courses: AdminDashboardCourse[];
+}
+
+/** Request shapes for the protected content-management API. */
+export interface AdminCourseInput {
+  slug: string;
+  title: LocalizedText;
+  description: LocalizedText;
+  status: ContentStatus;
+  sortOrder: number;
+}
+
+export interface AdminLessonInput {
+  courseId: number;
+  slug: string;
+  title: LocalizedText;
+  youtubeVideoId: string | null;
+  status: ContentStatus;
+  sortOrder: number;
+}
+
+export interface AdminBlockInput {
+  type: LessonBlockType;
+  data: unknown;
+  sortOrder: number;
+}
+
+export interface AdminQuestionInput {
+  courseId: number;
+  type: QuestionType;
+  prompt: LocalizedText;
+  answer: unknown;
+  explanation: LocalizedText;
+  difficulty: QuestionDifficulty;
+  status: ContentStatus;
+  lessonIds: number[];
+}
+
+export interface AdminQuestionFilters {
+  search?: string;
+  courseId?: number;
+  lessonId?: number;
+  type?: QuestionType;
+  difficulty?: QuestionDifficulty;
+  status?: ContentStatus;
+}
+
+/** Metadata is stored in D1; the binary is held only in the private R2 bucket. */
+export interface AdminAsset {
+  id: number;
+  kind: AssetKind;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  createdAt: string;
+  linkedBlockCount: number;
 }

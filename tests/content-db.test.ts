@@ -51,7 +51,7 @@ describe("content data access", () => {
     expect(db.queries[0]).toContain("c.status = 'published'");
   });
   it("uses DISTINCT for multiple lesson question scopes", async () => {
-    const db = new CapturingDb([{ id: 8, course_id: 1, type: "mcq", prompt_json: '{"ar":"س","en":"Q"}', answer_json: '{"choices":{"ar":["أ"],"en":["A"]},"correctIndex":0}', explanation_json: '{"ar":"ش","en":"E"}', difficulty: "beginner" }]);
+    const db = new CapturingDb([{ id: 8, course_id: 1, type: "mcq", prompt_json: '{"ar":"س","en":"Q"}', answer_json: '{"choices":{"ar":["أ"],"en":["A"]},"correctIndex":0}', explanation_json: '{"ar":"ش","en":"E"}', difficulty: "easy" }]);
     const questions = await listQuestionsForLessons(db as unknown as D1Database, [1, 2]);
     expect(db.query).toContain("SELECT DISTINCT");
     expect(db.query).toContain("INNER JOIN lessons l");
@@ -63,13 +63,13 @@ describe("content data access", () => {
     expect(questions).toHaveLength(1);
   });
   it("includes a course-wide question in a course query", async () => {
-    const db = new CapturingDb([{ id: 4, course_id: 1, type: "true_false", prompt_json: '{"ar":"س","en":"Q"}', answer_json: '{"correct":true}', explanation_json: '{"ar":"ش","en":"E"}', difficulty: "beginner" }]);
+    const db = new CapturingDb([{ id: 4, course_id: 1, type: "true_false", prompt_json: '{"ar":"س","en":"Q"}', answer_json: '{"correct":true}', explanation_json: '{"ar":"ش","en":"E"}', difficulty: "easy" }]);
     const questions = await listQuestionsForCourse(db as unknown as D1Database, 1);
     expect(db.query).not.toContain("question_lessons");
     expect(questions[0].id).toBe(4);
   });
   it("omits questions with malformed stored JSON", () => {
-    const row = { id: 1, course_id: 1, type: "mcq", prompt_json: '{"ar":"س","en":"Q"}', answer_json: '{"choices":{"ar":["أ"],"en":["A"]},"correctIndex":2}', explanation_json: '{"ar":"ش","en":"E"}', difficulty: "beginner" };
+    const row = { id: 1, course_id: 1, type: "mcq", prompt_json: '{"ar":"س","en":"Q"}', answer_json: '{"choices":{"ar":["أ"],"en":["A"]},"correctIndex":2}', explanation_json: '{"ar":"ش","en":"E"}', difficulty: "easy" };
     expect(toQuestion(row)).toBeNull();
     expect(toQuestion({ ...row, answer_json: "not-json" })).toBeNull();
   });

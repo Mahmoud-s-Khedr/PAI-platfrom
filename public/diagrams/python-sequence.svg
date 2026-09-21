@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 240" role="img" aria-labelledby="title desc">
+  <title id="title">Program sequence</title>
+  <desc id="desc">Three numbered stages: store a value, calculate, then show an output.</desc>
+  <rect width="840" height="240" rx="24" fill="#f8fafc"/>
+  <g stroke="#0f766e" stroke-width="6" fill="none" stroke-linecap="round">
+    <path d="M255 120h80m170 0h80"/>
+    <path d="m325 96 24 24-24 24m250-48 24 24-24 24"/>
+  </g>
+  <g fill="#0f766e">
+    <circle cx="150" cy="120" r="76"/><circle cx="420" cy="120" r="76"/><circle cx="690" cy="120" r="76"/>
+  </g>
+  <g fill="#fff" font-family="system-ui, sans-serif" font-size="54" font-weight="700" text-anchor="middle">
+    <text x="150" y="139">1</text><text x="420" y="139">2</text><text x="690" y="139">3</text>
+  </g>
+</svg>

@@ -4,11 +4,34 @@
 > **Initial courses:** First Secondary and Second Secondary  
 > **Core model:** Course → Lessons → Content / Interactives / YouTube, plus a curriculum-scoped Question Bank  
 > **Architecture:** React + TypeScript + Vite → same-origin `/api/*` → Hono on Cloudflare Workers → D1, with R2 for uploaded assets  
-> **Last reviewed:** 2026-09-19
+> **Last reviewed:** 2026-09-22
 >
 > **Review basis:** Checked items are implemented in the Phase 1 repository or
 > were verified locally in this review. Unchecked items remain future work,
 > require a production verification, or need a dedicated test.
+
+## Single-admin workflow
+
+The admin application has one content owner. Draft, published, and archived
+statuses are the only publishing workflow controls. Content-quality guidance is
+still useful, but the app must not require a reviewer checklist, an approval
+decision, a self-attestation, or a second-person sign-off before publishing.
+
+### Retired completed work — cleanup reference
+
+The following completed multi-person editorial features have been removed from
+the active UI and protected API. They are listed here so their remaining
+historical database and documentation references are easy to find.
+
+| Retired feature | Removed active code | Historical reference to remove later |
+| --- | --- | --- |
+| Source-evidence record, terminology/coverage notes, and correction log | `src/pages/admin-lesson-page.tsx`, `src/lib/types.ts`, `worker/routes/admin.ts`, `worker/db/admin.ts` | `migrations/0005_lesson_production_metadata.sql` → `lesson_production_metadata` table and its rows |
+| Original-work attestation, review checklist, interactive decision, and self-certification | Same files as above | The corresponding columns in `lesson_production_metadata` from migration `0005` |
+| Publication-readiness gate based on that metadata, video, and mapped questions | `worker/routes/admin.ts`, `worker/db/admin.ts`, `tests/admin-api.test.ts` | `docs/ADMIN_API.md`, `docs/DATABASE.md`, and `docs/CONTENT_QUALITY_STANDARDS.md` still describe the retired process and should be revised or deleted with the legacy table |
+
+Do not rewrite migration `0005`, because it may already be applied. If the
+legacy table is to be physically removed, add a new migration after backing up
+any data that needs to be retained.
 
 ---
 
@@ -119,6 +142,8 @@ Initial block types:
 - [x] Add `answer_json`.
 - [x] Add `explanation_json`.
 - [x] Add `difficulty`.
+- [x] Migrate legacy `beginner` values to `easy`.
+- [x] Restrict question difficulty to `easy`, `medium`, or `hard` in the CMS and D1.
 - [x] Add `status`.
 - [x] Add `created_at`.
 - [x] Add `updated_at`.
@@ -190,7 +215,7 @@ Initial question types:
 
 - [x] Validate route parameters.
 - [x] Validate query parameters.
-- [ ] Validate parsed JSON loaded from D1.
+- [x] Validate parsed JSON loaded from D1.
 - [x] Return proper `400` errors.
 - [x] Return proper `404` errors.
 - [x] Return proper `500` errors without exposing SQL/internal details.
@@ -245,9 +270,9 @@ Initial question types:
 - [x] Display course title.
 - [x] Display course description.
 - [x] Display ordered lesson list.
-- [ ] Display lesson completion indicators.
-- [ ] Add Continue Learning action.
-- [ ] Add course-level practice action.
+- [x] Display lesson completion indicators.
+- [x] Add Continue Learning action.
+- [x] Add course-level practice action.
 - [x] Handle empty course state.
 - [x] Handle API failure state.
 
@@ -321,13 +346,13 @@ Continue to next lesson
 
 - [x] Decide and document the rich-text format.
 - [x] Prefer safe Markdown or safe plain text.
-- [ ] Support headings.
+- [x] Support headings.
 - [x] Support paragraphs.
-- [ ] Support lists.
-- [ ] Support links.
-- [ ] Support inline code.
-- [ ] Support code blocks.
-- [ ] Support tables if needed.
+- [x] Support lists.
+- [x] Support links.
+- [x] Support inline code.
+- [x] Support code blocks.
+- [x] Support GFM tables.
 - [x] Do not blindly inject database HTML.
 - [x] Do not execute JavaScript from stored content.
 
@@ -342,9 +367,9 @@ Continue to next lesson
 
 ### Code Blocks
 
-- [ ] Add syntax highlighting.
-- [ ] Show language.
-- [ ] Add copy button.
+- [x] Add syntax highlighting.
+- [x] Show language.
+- [x] Add copy button.
 - [x] Preserve LTR code direction.
 - [x] Ensure code works properly inside RTL lesson layout.
 
@@ -515,43 +540,50 @@ Later:
 
 This is a major product milestone because it allows normal content changes without rebuilding/redeploying the app.
 
-> Items marked complete in the editor and question-bank sections below are
-> available through the protected admin API. The corresponding `/admin` browser
-> application remains unfinished.
+> The protected `/admin` browser application supports core course, lesson,
+> block, and question-bank authoring. Asset uploads and student-facing preview
+> remain separately scoped work.
 
 ### Admin Home
 
-- [ ] Protect `/admin`.
-- [ ] Display course list.
-- [ ] Display lesson list.
-- [ ] Show draft/published status.
-- [ ] Show question counts.
-- [ ] Show last update time where useful.
+- [x] Protect `/admin`.
+- [x] Display course list.
+- [x] Display lesson list.
+- [x] Show draft/published status.
+- [x] Show question counts.
+- [x] Show last update time where useful.
+
+### Course Editor
+
+- [x] Create courses from the browser CMS.
+- [x] Edit bilingual titles and descriptions.
+- [x] Edit slug, display order, and draft/published/archived status.
+- [x] Open and create a course's lessons.
 
 ### Lesson Editor
 
-- [x] Create lesson via admin API.
-- [x] Edit lesson via admin API.
-- [x] Archive/delete lesson safely via admin API.
-- [x] Edit Arabic title via admin API.
-- [x] Edit English title via admin API.
-- [x] Edit YouTube video ID via admin API.
-- [x] Change lesson order via admin API.
-- [x] Change draft/published/archived status via admin API.
+- [x] Create lesson via protected admin API and browser CMS.
+- [x] Edit lesson via protected admin API and browser CMS.
+- [x] Archive/delete lesson safely via protected admin API and browser CMS.
+- [x] Edit Arabic title via protected admin API and browser CMS.
+- [x] Edit English title via protected admin API and browser CMS.
+- [x] Edit YouTube video ID via protected admin API and browser CMS.
+- [x] Change lesson order via protected admin API and browser CMS.
+- [x] Change draft/published/archived status via protected admin API and browser CMS.
 
 ### Block Editor
 
-- [x] Add block via admin API.
-- [x] Edit block via admin API.
-- [x] Remove block via admin API.
-- [x] Reorder blocks via admin API.
-- [x] Rich-text block authoring via admin API.
-- [ ] Image selector/uploader.
-- [x] Code block authoring via admin API.
-- [x] Callout block authoring via admin API.
-- [x] Interactive type selection via admin API.
-- [x] Interactive configuration authoring via admin API.
-- [ ] Lesson preview.
+- [x] Add block via protected admin API and browser CMS.
+- [x] Edit block via protected admin API and browser CMS.
+- [x] Remove block via protected admin API and browser CMS.
+- [x] Reorder blocks via protected admin API and browser CMS.
+- [x] Rich-text block authoring via protected admin API and browser CMS.
+- [x] Image selector/uploader.
+- [x] Code block authoring via protected admin API and browser CMS.
+- [x] Callout block authoring via protected admin API and browser CMS.
+- [x] Interactive type selection via protected admin API and browser CMS.
+- [x] Interactive configuration authoring via protected admin API and browser CMS.
+- [x] Lesson preview.
 
 ### Publishing
 
@@ -570,32 +602,33 @@ This is a major product milestone because it allows normal content changes witho
 
 ### Question Management
 
-- [ ] Display question list.
-- [x] Search questions via admin API.
-- [x] Filter by course via admin API.
-- [x] Filter by lesson via admin API.
-- [x] Filter by type via admin API.
-- [x] Filter by difficulty via admin API.
-- [x] Filter by publication status via admin API.
+- [x] Display question list.
+- [x] Search questions via protected admin API and browser CMS.
+- [x] Filter by course via protected admin API and browser CMS.
+- [x] Filter by lesson via protected admin API and browser CMS.
+- [x] Filter by type via protected admin API and browser CMS.
+- [x] Filter by difficulty via protected admin API and browser CMS.
+- [x] Filter by publication status via protected admin API and browser CMS.
 
 ### Question Editor
 
-- [x] Create MCQ via admin API.
-- [x] Create true/false via admin API.
-- [x] Create short-answer question via admin API.
-- [x] Edit Arabic prompt via admin API.
-- [x] Edit English prompt via admin API.
-- [x] Edit answer via admin API.
-- [x] Edit Arabic explanation via admin API.
-- [x] Edit English explanation via admin API.
-- [x] Set difficulty via admin API.
-- [x] Assign one lesson via admin API.
-- [x] Assign multiple lessons via admin API.
-- [x] Make question course-wide via admin API.
-- [ ] Preview question.
-- [x] Publish/unpublish via admin API.
-- [x] Duplicate question via admin API.
-- [x] Archive/delete safely via admin API.
+- [x] Create MCQ via protected admin API and browser CMS.
+- [x] Create true/false via protected admin API and browser CMS.
+- [x] Create short-answer question via protected admin API and browser CMS.
+- [x] Edit Arabic prompt via protected admin API and browser CMS.
+- [x] Edit English prompt via protected admin API and browser CMS.
+- [x] Edit answer via protected admin API and browser CMS.
+- [x] Edit Arabic explanation via protected admin API and browser CMS.
+- [x] Edit English explanation via protected admin API and browser CMS.
+- [x] Set difficulty via protected admin API and browser CMS.
+- [x] Limit selectable difficulty to `easy`, `medium`, and `hard`.
+- [x] Assign one lesson via protected admin API and browser CMS.
+- [x] Assign multiple lessons via protected admin API and browser CMS.
+- [x] Make question course-wide via protected admin API and browser CMS.
+- [x] Preview question.
+- [x] Publish/unpublish via protected admin API and browser CMS.
+- [x] Duplicate question via protected admin API and browser CMS.
+- [x] Archive/delete safely via protected admin API and browser CMS.
 
 ---
 
@@ -603,7 +636,7 @@ This is a major product milestone because it allows normal content changes witho
 
 Initial approach:
 
-- [ ] Protect admin application.
+- [x] Protect admin application.
 - [x] Protect all write APIs.
 - [x] Ensure public users cannot modify D1.
 - [x] Validate every write operation.
@@ -624,19 +657,19 @@ Later, if multiple staff/admin users exist:
 ## 14. R2 / Asset Management
 
 - [ ] Create R2 bucket.
-- [ ] Configure Worker R2 binding.
-- [ ] Upload images.
-- [ ] Upload worksheets.
-- [ ] Upload datasets.
-- [ ] Upload downloadable lesson resources.
-- [ ] Store asset metadata in D1.
-- [ ] Serve assets safely.
-- [ ] Validate MIME types.
-- [ ] Add file-size limits.
-- [ ] Generate safe object keys.
-- [ ] Prevent dangerous file execution.
-- [ ] Handle asset deletion.
-- [ ] Find/remove orphaned assets.
+- [x] Configure Worker R2 binding.
+- [x] Upload images.
+- [x] Upload worksheets.
+- [x] Upload datasets.
+- [x] Upload downloadable lesson resources.
+- [x] Store asset metadata in D1.
+- [x] Serve assets safely.
+- [x] Validate MIME types.
+- [x] Add file-size limits.
+- [x] Generate safe object keys.
+- [x] Prevent dangerous file execution.
+- [x] Handle asset deletion.
+- [x] Find/remove orphaned assets.
 - [ ] Add multipart upload only if large files eventually require it.
 
 YouTube should continue handling lesson videos unless there is a reason to change that.
@@ -695,21 +728,19 @@ Next lesson
 
 ## 16. Content Quality System
 
-- [ ] Define lesson-writing template.
-- [ ] Define Arabic terminology rules.
-- [ ] Define English terminology rules.
-- [ ] Define bilingual terminology consistency rules.
-- [ ] Define question-writing guidelines.
-- [ ] Define difficulty levels.
-- [ ] Define answer-explanation standards.
-- [ ] Define image/diagram style.
-- [ ] Define video format/style.
-- [ ] Define interactive-design rules.
-- [ ] Track source lesson(s) used for each authored lesson.
-- [ ] Require human review before publishing.
-- [ ] Create correction workflow for content mistakes.
-- [ ] Review licensing/reuse rules for Ministry textbook material.
-- [ ] Prefer original explanations, diagrams, activities, and questions unless reproduction rights are clear.
+- [x] Define lesson-writing template.
+- [x] Define Arabic terminology rules.
+- [x] Define English terminology rules.
+- [x] Define bilingual terminology consistency rules.
+- [x] Define question-writing guidelines.
+- [x] Define difficulty levels.
+- [x] Define answer-explanation standards.
+- [x] Define image/diagram style.
+- [x] Define video format/style.
+- [x] Define interactive-design rules.
+- [x] Create correction workflow for content mistakes.
+- [x] Review licensing/reuse rules for Ministry textbook material.
+- [x] Prefer original explanations, diagrams, activities, and questions unless reproduction rights are clear.
 
 ---
 
@@ -790,15 +821,15 @@ Not required for the first internal release, but valuable later.
 - [x] Keep secrets out of frontend code.
 - [x] Access D1 only through Worker backend.
 - [ ] Restrict R2 write access to trusted backend/admin paths.
-- [ ] Validate API inputs.
-- [ ] Validate JSON loaded from D1.
+- [x] Validate API inputs.
+- [x] Validate JSON loaded from D1.
 - [x] Never execute arbitrary JavaScript from lesson content.
 - [x] Never blindly render unsafe database HTML.
 - [ ] Restrict upload MIME types.
 - [ ] Restrict upload sizes.
 - [ ] Add appropriate security headers.
-- [ ] Protect admin routes.
-- [ ] Protect write endpoints.
+- [x] Protect admin routes.
+- [x] Protect write endpoints.
 - [ ] Review dependencies for vulnerabilities.
 - [ ] Create backup/export plan for authored content.
 
@@ -825,6 +856,7 @@ Not required for the first internal release, but valuable later.
 - [ ] Multi-lesson question scope.
 - [x] Multi-lesson deduplication.
 - [x] Course-wide questions.
+- [x] Standardized question-difficulty validation.
 - [ ] Invalid IDs/slugs.
 - [ ] Invalid query parameters.
 - [ ] Invalid stored JSON handling.
@@ -1034,7 +1066,7 @@ Do **not** make these prerequisites for launch:
 
 ## Milestone 4 — Admin CMS
 
-- [ ] Protect admin.
+- [x] Protect admin.
 - [x] Course management API.
 - [x] Lesson management API.
 - [x] Block authoring API.
@@ -1049,7 +1081,7 @@ Do **not** make these prerequisites for launch:
 
 ## Milestone 5 — Content Production
 
-- [ ] Establish authoring standards.
+- [x] Establish authoring standards.
 - [ ] Work lesson-by-lesson through First Secondary.
 - [ ] Work lesson-by-lesson through Second Secondary.
 - [ ] Record corresponding videos.
@@ -1096,7 +1128,6 @@ A reasonable first release is ready when:
 - [ ] At least a useful initial set of real lessons has been published.
 - [ ] Mobile experience is usable.
 - [ ] Critical errors/security issues have been addressed.
-- [ ] Content is human-reviewed before publication.
 
 Everything else can grow after students start using the platform.
 

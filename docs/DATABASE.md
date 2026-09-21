@@ -6,6 +6,7 @@ The Phase 1 content schema lives in `migrations/0001_initial_schema.sql`; authen
 | --- | --- | --- |
 | `courses` | Bilingual course metadata | Unique `slug`; status is `draft`, `published`, or `archived`; ordered by `sort_order`. |
 | `lessons` | Bilingual course lessons | `course_id → courses.id`; unique `(course_id, slug)`; nullable `youtube_video_id` stores only the YouTube ID. |
+| `lesson_production_metadata` | Protected editorial evidence | One row per lesson: source identifiers and author-written notes, review checklist, interactive decision, original-work attestation, correction reason, and self-certification identity/timestamp. It is never returned by public APIs. |
 | `lesson_blocks` | Ordered generic lesson content | `lesson_id → lessons.id`; constrained initial block types; one `data_json` payload instead of per-block tables. |
 | `questions` | Generic question-bank records | `course_id → courses.id`; constrained initial types; JSON prompt, answer, and explanation. |
 | `question_lessons` | Optional question-to-lesson scoping | Composite PK `(question_id, lesson_id)`, cascading foreign keys, and a trigger requiring the question and lesson to have the same course. |
@@ -21,6 +22,17 @@ Indexes cover course/lesson ordering, lesson-block ordering, course question sta
 Database JSON is treated as untrusted. Before it is returned through the public API, the Worker parses and validates every `lesson_blocks.data_json` payload against its block type and every question `prompt_json`, `answer_json`, and `explanation_json` payload against its question type. A malformed block is retained with `data: null` so the client can display its existing safe fallback; a malformed question is omitted from the public result. No stored JSON is executed or rendered as HTML.
 
 The initial Phase 1 block set intentionally excludes downloads. Adding a download block requires a separately scoped asset-delivery flow rather than storing or serving files from D1.
+
+## Production readiness
+
+`0005_lesson_production_metadata.sql` migrates legacy demo question difficulty
+`beginner` to `easy` and adds the per-lesson editorial record. The protected
+lesson update route requires complete Arabic and English source references and
+author notes, original-work attestation, all checklist entries, a documented
+interactive decision, a real YouTube ID, signed-in-admin self-certification,
+and at least one mapped published question before it accepts `published`.
+Existing demo content receives empty evidence and remains distinguishable from
+reviewed authored material.
 
 ## Local verification
 

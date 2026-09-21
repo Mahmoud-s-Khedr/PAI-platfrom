@@ -6,10 +6,13 @@ import type {
   AdminLessonBlock,
   AdminLessonSummary,
   AdminQuestion,
+  AdminAsset,
+  AssetKind,
   ContentStatus,
   Course,
   LessonBlockType,
   LocalizedText,
+  QuestionDifficulty,
   QuestionType,
 } from "../../src/lib/types";
 import { toBlock, toQuestion } from "./content";
@@ -67,6 +70,38 @@ interface AdminQuestionRow extends Record<string, unknown> {
   updated_at: string;
 }
 
+interface AdminAssetRow extends Record<string, unknown> {
+  id: number;
+  key: string;
+  mime_type: string;
+  metadata_json: string;
+  created_at: string;
+  linked_block_count: number;
+}
+
+interface AssetMetadata {
+  kind: AssetKind;
+  fileName: string;
+  size: number;
+}
+
+const assetMimeTypes: Record<AssetKind, readonly string[]> = {
+  image: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+  worksheet: ["application/pdf"],
+  dataset: ["text/csv", "application/json"],
+  resource: ["application/pdf", "text/plain", "text/csv", "application/json"],
+};
+const assetExtensions: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "application/pdf": "pdf", "text/csv": "csv", "application/json": "json", "text/plain": "txt" };
+
+export interface AssetInput extends AssetMetadata {
+  key: string;
+  mimeType: string;
+}
+
+export interface StoredAsset extends AdminAsset {
+  key: string;
+}
+
 export interface CourseInput {
   slug: string;
   title: LocalizedText;
@@ -96,7 +131,7 @@ export interface QuestionInput {
   prompt: LocalizedText;
   answer: unknown;
   explanation: LocalizedText;
-  difficulty: string;
+  difficulty: QuestionDifficulty;
   status: ContentStatus;
   lessonIds: number[];
 }
@@ -105,7 +140,7 @@ export interface QuestionFilters {
   courseId?: number;
   lessonId?: number;
   type?: QuestionType;
-  difficulty?: string;
+  difficulty?: QuestionDifficulty;
   status?: ContentStatus;
   search?: string;
 }
@@ -151,6 +186,24 @@ function toAdminLessonSummary(row: AdminLessonRow): AdminLessonSummary {
 function toAdminQuestion(row: AdminQuestionRow, lessonIds: number[]): AdminQuestion | null {
   const question = toQuestion(row);
   return question ? { ...question, status: row.status, lessonIds, createdAt: row.created_at, updatedAt: row.updated_at } : null;
+}
+
+function parseAssetMetadata(value: string): AssetMetadata | null {
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object" || !["image", "worksheet", "dataset", "resource"].includes(String(parsed.kind)) || typeof parsed.fileName !== "string" || !/^[a-zA-Z0-9._-]{1,120}$/.test(parsed.fileName) || typeof parsed.size !== "number" || !Number.isInteger(parsed.size) || parsed.size < 0) return null;
+    return { kind: parsed.kind as AssetKind, fileName: parsed.fileName, size: parsed.size };
+  } catch {
+    return null;
+  }
+}
+
+function toAdminAsset(row: AdminAssetRow): StoredAsset | null {
+  const metadata = parseAssetMetadata(row.metadata_json);
+  if (!metadata || !assetMimeTypes[metadata.kind].includes(row.mime_type)) return null;
+  const extension = assetExtensions[row.mime_type];
+  if (!extension || !new RegExp(`^assets/${metadata.kind}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.${extension}$`).test(row.key)) return null;
+  return { id: row.id, ...metadata, mimeType: row.mime_type, url: `/api/assets/${row.id}`, createdAt: row.created_at, linkedBlockCount: row.linked_block_count, key: row.key };
 }
 
 const courseColumns = `c.id, c.slug, c.title_ar, c.title_en, c.description_ar, c.description_en,
@@ -245,7 +298,9 @@ export async function createAdminBlock(db: D1Database, lessonId: number, input: 
   const row = await db.prepare(`INSERT INTO lesson_blocks (lesson_id, type, sort_order, data_json, updated_at)
     VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id`)
     .bind(lessonId, input.type, input.sortOrder, JSON.stringify(input.data)).first<{ id: number }>();
-  return row!.id;
+  const id = row!.id;
+  await replaceBlockAssetLink(db, id, input);
+  return id;
 }
 
 export async function blockSortOrderExists(db: D1Database, lessonId: number, sortOrder: number, exceptId?: number): Promise<boolean> {
@@ -265,10 +320,24 @@ export async function blockSortOrderConflict(db: D1Database, blockId: number, so
 export async function updateAdminBlock(db: D1Database, id: number, input: BlockInput): Promise<void> {
   await db.prepare("UPDATE lesson_blocks SET type = ?, sort_order = ?, data_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
     .bind(input.type, input.sortOrder, JSON.stringify(input.data), id).run();
+  await replaceBlockAssetLink(db, id, input);
 }
 
 export async function deleteAdminBlock(db: D1Database, id: number): Promise<void> {
   await db.prepare("DELETE FROM lesson_blocks WHERE id = ?").bind(id).run();
+}
+
+function imageAssetId(input: BlockInput): number | null {
+  if (input.type !== "image" || !input.data || typeof input.data !== "object") return null;
+  const value = (input.data as Record<string, unknown>).assetId;
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+async function replaceBlockAssetLink(db: D1Database, blockId: number, input: BlockInput): Promise<void> {
+  const assetId = imageAssetId(input);
+  const statements = [db.prepare("DELETE FROM asset_links WHERE lesson_block_id = ?").bind(blockId)];
+  if (assetId) statements.push(db.prepare("INSERT INTO asset_links (asset_id, lesson_block_id) VALUES (?, ?)").bind(assetId, blockId));
+  await db.batch(statements);
 }
 
 export async function listAdminBlockIds(db: D1Database, lessonId: number): Promise<number[]> {
@@ -363,4 +432,34 @@ export async function lessonIdsBelongToCourse(db: D1Database, lessonIds: number[
   const placeholders = lessonIds.map(() => "?").join(", ");
   const result = await db.prepare(`SELECT id FROM lessons WHERE course_id = ? AND id IN (${placeholders})`).bind(courseId, ...lessonIds).all<{ id: number }>();
   return result.results.length === lessonIds.length;
+}
+
+const assetColumns = `a.id, a.key, a.mime_type, a.metadata_json, a.created_at,
+  (SELECT COUNT(*) FROM asset_links al WHERE al.asset_id = a.id) AS linked_block_count`;
+
+export async function listAdminAssets(db: D1Database): Promise<AdminAsset[]> {
+  const result = await db.prepare(`SELECT ${assetColumns} FROM assets a ORDER BY a.created_at DESC, a.id DESC`).all<AdminAssetRow>();
+  return result.results.flatMap((row) => {
+    const asset = toAdminAsset(row);
+    return asset ? [{ id: asset.id, kind: asset.kind, fileName: asset.fileName, mimeType: asset.mimeType, size: asset.size, url: asset.url, createdAt: asset.createdAt, linkedBlockCount: asset.linkedBlockCount }] : [];
+  });
+}
+
+export async function findStoredAsset(db: D1Database, id: number): Promise<StoredAsset | null> {
+  const row = await db.prepare(`SELECT ${assetColumns} FROM assets a WHERE a.id = ?`).bind(id).first<AdminAssetRow>();
+  return row ? toAdminAsset(row) : null;
+}
+
+export async function createAdminAsset(db: D1Database, input: AssetInput): Promise<number> {
+  const row = await db.prepare(`INSERT INTO assets (key, mime_type, metadata_json)
+    VALUES (?, ?, ?) RETURNING id`).bind(input.key, input.mimeType, JSON.stringify({ kind: input.kind, fileName: input.fileName, size: input.size })).first<{ id: number }>();
+  return row!.id;
+}
+
+export async function deleteAdminAsset(db: D1Database, id: number): Promise<void> {
+  await db.prepare("DELETE FROM assets WHERE id = ?").bind(id).run();
+}
+
+export async function assetIsLinked(db: D1Database, id: number): Promise<boolean> {
+  return Boolean(await db.prepare("SELECT 1 FROM asset_links WHERE asset_id = ? LIMIT 1").bind(id).first<{ 1: number }>());
 }

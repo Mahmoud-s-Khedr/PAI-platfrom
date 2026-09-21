@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import type { ContentStatus, LessonBlockType, QuestionType } from "../../src/lib/types";
+import type { ContentStatus, LessonBlockType, QuestionDifficulty, QuestionType } from "../../src/lib/types";
 import {
   archiveAdminLesson,
   archiveAdminQuestion,
+  assetIsLinked,
   blockSortOrderConflict,
   blockSortOrderExists,
   courseExists,
@@ -11,11 +12,14 @@ import {
   createAdminCourse,
   createAdminLesson,
   createAdminQuestion,
+  createAdminAsset,
+  deleteAdminAsset,
   deleteAdminBlock,
   findAdminBlock,
   findAdminCourse,
   findAdminLesson,
   findAdminQuestion,
+  findStoredAsset,
   lessonIdsBelongToCourse,
   lessonHasQuestionMappings,
   listAdminBlockIds,
@@ -23,6 +27,7 @@ import {
   listAdminDashboard,
   listAdminLessons,
   listAdminQuestions,
+  listAdminAssets,
   reorderAdminBlocks,
   updateAdminBlock,
   updateAdminCourse,
@@ -37,7 +42,8 @@ import { requireAdmin } from "../lib/admin-auth";
 import { errorResponse } from "../lib/http";
 
 type Bindings = import("../lib/auth").AuthBindings;
-const admin = new Hono<{ Bindings: Bindings }>();
+type Variables = { adminUser: import("../../src/lib/types").AuthUser };
+const admin = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 const positiveInteger = z.coerce.number().int().positive();
 const statusSchema = z.enum(["draft", "published", "archived"]);
 const blockTypeSchema = z.enum(["rich-text", "image", "code", "callout", "interactive"]);
@@ -45,11 +51,10 @@ const questionTypeSchema = z.enum(["mcq", "true_false", "short_answer"]);
 const slugSchema = z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must use lowercase letters, numbers, and hyphens").max(120);
 const textSchema = z.string().trim().min(1).max(20_000);
 const localizedTextSchema = z.object({ ar: textSchema, en: textSchema }).strict();
-const difficultySchema = z.string().trim().min(1).max(80);
-
+const difficultySchema = z.enum(["easy", "medium", "hard"]);
 const blockDataSchemas = {
   "rich-text": localizedTextSchema,
-  image: z.object({ src: z.string().trim().min(1).max(2_000), alt: localizedTextSchema.optional(), caption: localizedTextSchema.optional() }).strict(),
+  image: z.object({ src: z.string().trim().min(1).max(2_000), assetId: positiveInteger.optional(), alt: localizedTextSchema.optional(), caption: localizedTextSchema.optional() }).strict(),
   code: z.object({ language: z.string().trim().min(1).max(80).optional(), code: z.string().max(100_000) }).strict(),
   callout: localizedTextSchema.extend({ tone: z.string().trim().min(1).max(40).optional() }).strict(),
   interactive: z.object({ component: z.string().trim().min(1).max(120), props: z.record(z.string(), z.unknown()).optional() }).strict(),
@@ -137,9 +142,72 @@ async function validateQuestionLinks(c: Parameters<typeof errorResponse>[0], inp
   return null;
 }
 
+async function validateBlockAsset(c: Parameters<typeof errorResponse>[0], input: BlockInput): Promise<Response | null> {
+  if (input.type !== "image" || !input.data || typeof input.data !== "object") return null;
+  const data = input.data as { assetId?: unknown; src?: unknown };
+  if (typeof data.assetId !== "number") return null;
+  const asset = await findStoredAsset(c.env.DB, data.assetId);
+  if (!asset || asset.kind !== "image" || data.src !== asset.url) return errorResponse(c, 400, "INVALID_IMAGE_ASSET", "The selected image asset is not available");
+  return null;
+}
+
+const assetRules = {
+  image: { mimeTypes: new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]), maxBytes: 8 * 1024 * 1024 },
+  worksheet: { mimeTypes: new Set(["application/pdf"]), maxBytes: 20 * 1024 * 1024 },
+  dataset: { mimeTypes: new Set(["text/csv", "application/json"]), maxBytes: 20 * 1024 * 1024 },
+  resource: { mimeTypes: new Set(["application/pdf", "text/plain", "text/csv", "application/json"]), maxBytes: 20 * 1024 * 1024 },
+} as const;
+
+function safeFileName(name: string): string {
+  const normalized = name.normalize("NFKC").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+  return (normalized || "upload").slice(0, 120);
+}
+
+function extensionForMimeType(mimeType: string): string {
+  return ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "application/pdf": "pdf", "text/csv": "csv", "application/json": "json", "text/plain": "txt" } as Record<string, string>)[mimeType]!;
+}
+
 admin.use("*", requireAdmin);
 
 admin.get("/dashboard", async (c) => c.json(await listAdminDashboard(c.env.DB)));
+
+admin.get("/assets", async (c) => c.json(await listAdminAssets(c.env.DB)));
+
+admin.post("/assets", async (c) => {
+  const contentLength = Number(c.req.header("Content-Length"));
+  if (Number.isFinite(contentLength) && contentLength > 21 * 1024 * 1024) return errorResponse(c, 413, "ASSET_TOO_LARGE", "The uploaded file is too large");
+  let form: FormData;
+  try { form = await c.req.raw.formData(); } catch { return errorResponse(c, 400, "INVALID_ASSET_UPLOAD", "Upload must be multipart form data"); }
+  const kind = form.get("kind");
+  const file = form.get("file");
+  if ((kind !== "image" && kind !== "worksheet" && kind !== "dataset" && kind !== "resource") || !(file instanceof File)) return errorResponse(c, 400, "INVALID_ASSET_UPLOAD", "A supported asset type and file are required");
+  const rule = assetRules[kind];
+  if (!rule.mimeTypes.has(file.type) || file.size < 1) return errorResponse(c, 400, "INVALID_ASSET_MIME_TYPE", "This file type is not allowed for the selected asset type");
+  if (file.size > rule.maxBytes) return errorResponse(c, 413, "ASSET_TOO_LARGE", "The uploaded file is too large");
+  const key = `assets/${kind}/${crypto.randomUUID()}.${extensionForMimeType(file.type)}`;
+  const fileName = safeFileName(file.name);
+  const disposition = kind === "image" ? `inline; filename=\"${fileName}\"` : `attachment; filename=\"${fileName}\"`;
+  await c.env.ASSET_BUCKET.put(key, file, { httpMetadata: { contentType: file.type, contentDisposition: disposition, cacheControl: "public, max-age=31536000, immutable" } });
+  try {
+    const id = await createAdminAsset(c.env.DB, { key, kind, fileName, mimeType: file.type, size: file.size });
+    const asset = await findStoredAsset(c.env.DB, id);
+    return c.json(asset && { id: asset.id, kind: asset.kind, fileName: asset.fileName, mimeType: asset.mimeType, size: asset.size, url: asset.url, createdAt: asset.createdAt, linkedBlockCount: asset.linkedBlockCount }, 201);
+  } catch (error) {
+    await c.env.ASSET_BUCKET.delete(key);
+    throw error;
+  }
+});
+
+admin.delete("/assets/:id", async (c) => {
+  const id = requestId(c.req.param("id"), c, "asset");
+  if (id instanceof Response) return id;
+  const asset = await findStoredAsset(c.env.DB, id);
+  if (!asset) return errorResponse(c, 404, "ASSET_NOT_FOUND", "Asset not found");
+  if (await assetIsLinked(c.env.DB, id)) return errorResponse(c, 409, "ASSET_IN_USE", "Remove the asset from its lesson block before deleting it");
+  await c.env.ASSET_BUCKET.delete(asset.key);
+  await deleteAdminAsset(c.env.DB, id);
+  return c.body(null, 204);
+});
 
 admin.get("/courses", async (c) => c.json(await listAdminCourses(c.env.DB)));
 
@@ -224,6 +292,8 @@ admin.post("/lessons/:lessonId/blocks", async (c) => {
   if (await blockSortOrderExists(c.env.DB, lessonId, input.sortOrder)) {
     return errorResponse(c, 409, "BLOCK_SORT_ORDER_CONFLICT", "Another block already uses this sort order");
   }
+  const assetError = await validateBlockAsset(c, input as BlockInput);
+  if (assetError) return assetError;
   const id = await createAdminBlock(c.env.DB, lessonId, input as BlockInput);
   return c.json(await findAdminBlock(c.env.DB, id), 201);
 });
@@ -240,6 +310,8 @@ admin.patch("/blocks/:id", async (c) => {
   if (await blockSortOrderConflict(c.env.DB, id, candidate.data.sortOrder)) {
     return errorResponse(c, 409, "BLOCK_SORT_ORDER_CONFLICT", "Another block already uses this sort order");
   }
+  const assetError = await validateBlockAsset(c, candidate.data as BlockInput);
+  if (assetError) return assetError;
   await updateAdminBlock(c.env.DB, id, candidate.data as BlockInput);
   return c.json(await findAdminBlock(c.env.DB, id));
 });

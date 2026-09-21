@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { gradeQuestion } from "../src/question-engine/grading";
 import type { Question } from "../src/lib/types";
 
-const common = { id: 1, courseId: 1, prompt: { ar: "س", en: "Q" }, explanation: { ar: "ش", en: "E" }, difficulty: "beginner" };
+const common = { id: 1, courseId: 1, prompt: { ar: "س", en: "Q" }, explanation: { ar: "ش", en: "E" }, difficulty: "easy" as const };
 
 describe("question grading", () => {
   it("grades MCQ answers by correct index", () => {

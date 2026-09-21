@@ -1,6 +1,6 @@
 # Production deployment
 
-This guide deploys the React SPA and Hono Worker together to Cloudflare Workers and attaches the production D1 database. It requires a Cloudflare account with Workers and D1 access.
+This guide deploys the React SPA and Hono Worker together to Cloudflare Workers and attaches the production D1 database and private R2 asset bucket. It requires a Cloudflare account with Workers, D1, and R2 access.
 
 ## Before you start
 
@@ -46,6 +46,17 @@ Administrator credentials are provisioned separately with the password-hash boot
    ```
 
 Commit the non-secret D1 UUID in `wrangler.jsonc` with the configuration change. Do not put passwords, API tokens, or other secrets in this file.
+
+5. Create the R2 asset bucket named by the `ASSET_BUCKET` binding before deployment:
+
+   ```bash
+   npx wrangler r2 bucket create pai-platform-assets --location=enam
+   npx wrangler r2 bucket info pai-platform-assets
+   ```
+
+   Keep the bucket private: the Worker validates and serves every object through
+   `/api/assets/:id`. Do not enable an `r2.dev` public URL or attach a public
+   bucket domain for this application.
 
 ## Migrate production D1
 
@@ -129,4 +140,4 @@ For every release:
 
 Google OAuth and session configuration use Worker secrets; set them with
 `wrangler secret put` as described in [Authentication](AUTHENTICATION.md). Do
-not store credentials in the repository. R2 remains out of scope for Phase 1.
+not store credentials in the repository.

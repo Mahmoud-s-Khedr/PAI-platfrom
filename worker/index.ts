@@ -3,6 +3,7 @@ import type { Context } from "hono";
 import { admin } from "./routes/admin";
 import { auth } from "./routes/auth";
 import { content } from "./routes/content";
+import { assets } from "./routes/assets";
 import { getSessionUser, type AuthBindings } from "./lib/auth";
 import { errorResponse } from "./lib/http";
 
@@ -16,6 +17,7 @@ app.onError((error, c) => {
 
 app.get("/api/health", (c) => c.json({ ok: true }));
 app.route("/api/auth", auth);
+app.route("/api", assets);
 app.route("/api", content);
 app.route("/api/admin", admin);
 
@@ -29,7 +31,10 @@ function deniedAdminPage(request: Request): Response {
 
 async function adminShell(c: Context<{ Bindings: Bindings }>) {
   const user = await getSessionUser(c.req.raw, c.env.DB);
-  if (!user) return c.redirect(`/login?returnTo=${encodeURIComponent("/admin")}`);
+  if (!user) {
+    const url = new URL(c.req.url);
+    return c.redirect(`/login?returnTo=${encodeURIComponent(`${url.pathname}${url.search}`)}`);
+  }
   if (user.role !== "admin") return deniedAdminPage(c.req.raw);
   return c.env.ASSETS.fetch(c.req.raw);
 }

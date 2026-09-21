@@ -22,7 +22,9 @@ The UI is a deliberately small student-facing SPA:
 
 ## Content safety
 
-The Phase 1 rich-text block renders database text as text paragraphs. It does **not** inject database HTML or parse raw HTML, avoiding arbitrary HTML execution. Interactive block names are resolved only through a hardcoded frontend registry. D1 never supplies JavaScript for execution; unknown block/component types show a contained notice rather than breaking the lesson page.
+The Phase 1 rich-text block stores a localized `{ "ar", "en" }` safe Markdown string and renders CommonMark with GFM tables. Supported authoring features are headings, paragraphs, emphasis, ordered/unordered/task lists, links, inline code, fenced code, and tables. Fenced code and dedicated code blocks share syntax highlighting for Python, JavaScript, TypeScript, JSON, HTML, CSS, and Bash; unrecognized languages render as escaped plain text.
+
+Rich text is still untrusted D1 content. The renderer skips raw HTML, does not use an HTML parser or `dangerouslySetInnerHTML`, suppresses Markdown images, and only makes relative same-site, `http:`, `https:`, and `mailto:` URLs clickable. External HTTP(S) links open with `rel="noopener noreferrer"`. Images remain the dedicated image-block feature, and interactive block names are resolved only through a hardcoded frontend registry. D1 never supplies JavaScript for execution; unknown block/component types show a contained notice rather than breaking the lesson page.
 
 ## Student state
 

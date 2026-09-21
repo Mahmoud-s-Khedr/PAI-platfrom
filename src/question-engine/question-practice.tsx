@@ -16,12 +16,17 @@ function choices(question: Question, language: "ar" | "en"): string[] {
   return Array.isArray(all) ? all.filter((choice): choice is string => typeof choice === "string") : [];
 }
 
-export function QuestionPractice({ questions }: { questions: Question[] }) {
+export function QuestionPractice({ questions, scope = "lesson" }: { questions: Question[]; scope?: "lesson" | "course" }) {
   const { language } = useLanguage();
   const [index, setIndex] = useState(0);
   const [response, setResponse] = useState<number | boolean | string>("");
   const [result, setResult] = useState<boolean | null>(null);
-  if (!questions.length) return <Card><CardContent className="py-8 text-center text-muted-foreground">{language === "ar" ? "لا توجد أسئلة تدريبية متاحة لهذا الدرس بعد." : "No practice questions are available for this lesson yet."}</CardContent></Card>;
+  if (!questions.length) {
+    const emptyMessage = scope === "course"
+      ? (language === "ar" ? "لا توجد أسئلة تدريبية متاحة لهذا المقرر بعد." : "No practice questions are available for this course yet.")
+      : (language === "ar" ? "لا توجد أسئلة تدريبية متاحة لهذا الدرس بعد." : "No practice questions are available for this lesson yet.");
+    return <Card><CardContent className="py-8 text-center text-muted-foreground">{emptyMessage}</CardContent></Card>;
+  }
   const question = questions[index];
   const check = () => { setResult(gradeQuestion(question, response)); studentState.recordAttempt(question.id); };
   const next = () => { setIndex((index + 1) % questions.length); setResponse(""); setResult(null); };

@@ -1,17 +1,19 @@
 import type { ComponentType } from "react";
 import type { LessonBlock as Block } from "../lib/types";
 import { BinaryConverter, PythonPlayground } from "../interactives/registry";
+import { registeredInteractiveComponentIds } from "../interactives/component-ids";
 import { useLanguage } from "../app/language";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
+import { MarkdownRenderer } from "./markdown-renderer";
+import { SyntaxHighlightedCode } from "./syntax-highlighted-code";
 
 function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null; }
 function text(data: unknown, language: "ar" | "en") { return isRecord(data) && typeof data[language] === "string" ? data[language] : ""; }
 
 export function RichTextBlock({ data }: { data: unknown }) {
   const { language } = useLanguage();
-  // Markdown is treated as text and never injected as HTML; this keeps authored content safe in Phase 1.
-  return <section className="space-y-4 text-[1.05rem] leading-8 text-foreground/90">{text(data, language).split("\n").filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</section>;
+  return <MarkdownRenderer markdown={text(data, language)} language={language} />;
 }
 
 export function ImageBlock({ data }: { data: unknown }) {
@@ -21,8 +23,9 @@ export function ImageBlock({ data }: { data: unknown }) {
 }
 
 export function CodeBlock({ data }: { data: unknown }) {
+  const { language } = useLanguage();
   if (!isRecord(data) || typeof data.code !== "string") return <BlockIssue message="Code block is malformed." />;
-  return <pre className="overflow-x-auto rounded-xl bg-slate-950 p-4 text-sm text-slate-100 shadow-sm" dir="ltr"><code className={typeof data.language === "string" ? `language-${data.language}` : undefined}>{data.code}</code></pre>;
+  return <SyntaxHighlightedCode code={data.code} language={typeof data.language === "string" ? data.language : undefined} interfaceLanguage={language} />;
 }
 
 export function CalloutBlock({ data }: { data: unknown }) {
@@ -30,7 +33,7 @@ export function CalloutBlock({ data }: { data: unknown }) {
   return <Alert className="border-primary/25 bg-primary/5 text-foreground"><AlertDescription>{text(data, language)}</AlertDescription></Alert>;
 }
 
-const interactiveRegistry: Record<string, ComponentType<{ props: Record<string, unknown> }>> = {
+const interactiveRegistry: Record<(typeof registeredInteractiveComponentIds)[number], ComponentType<{ props: Record<string, unknown> }>> = {
   "binary-converter": BinaryConverter,
   "python-playground": PythonPlayground,
 };
@@ -41,7 +44,7 @@ export function isSupportedLessonBlockType(type: string): boolean {
 
 export function InteractiveBlock({ data }: { data: unknown }) {
   if (!isRecord(data) || typeof data.component !== "string") return <BlockIssue message="Interactive block is malformed." />;
-  const Component = interactiveRegistry[data.component];
+  const Component = registeredInteractiveComponentIds.includes(data.component as (typeof registeredInteractiveComponentIds)[number]) ? interactiveRegistry[data.component as (typeof registeredInteractiveComponentIds)[number]] : undefined;
   if (!Component) return <BlockIssue message={`Interactive “${data.component}” is not available yet.`} />;
   return <Card><CardContent className="p-5"><Component props={isRecord(data.props) ? data.props : {}} /></CardContent></Card>;
 }
