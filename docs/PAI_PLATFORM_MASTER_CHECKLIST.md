@@ -248,10 +248,10 @@ Initial question types:
 - [x] Return published questions only.
 - [x] Deduplicate multi-lesson results.
 - [x] Document course-wide question semantics.
-- [ ] Add optional difficulty filtering when useful.
-- [ ] Add optional question-count limit when useful.
-- [ ] Design a scalable random-selection strategy.
-- [ ] Avoid large-table `ORDER BY RANDOM()` as the long-term strategy.
+- [x] Add optional difficulty filtering when useful.
+- [x] Add optional question-count limit when useful.
+- [x] Design a scalable random-selection strategy.
+- [x] Avoid large-table `ORDER BY RANDOM()` as the long-term strategy.
 
 ---
 
@@ -280,15 +280,15 @@ Initial question types:
 ### Lesson Page
 
 - [x] Display lesson title.
-- [ ] Add previous lesson navigation.
-- [ ] Add next lesson navigation.
+- [x] Add previous lesson navigation.
+- [x] Add next lesson navigation.
 - [x] Render YouTube player when video exists.
 - [x] Render lesson blocks.
 - [x] Render interactive material.
 - [x] Add lesson practice section.
 - [x] Add Mark Completed behavior.
 - [x] Persist lesson progress.
-- [ ] Handle missing/unavailable video.
+- [x] Handle missing/unavailable video.
 - [x] Handle invalid content block gracefully.
 
 ### Core Student Journey
@@ -523,12 +523,12 @@ No account is required initially.
 - [x] Create one browser-storage abstraction.
 - [x] Store language preference.
 - [x] Store completed lessons.
-- [ ] Store last opened lesson.
+- [x] Store last opened lesson.
 - [x] Store question attempts.
-- [ ] Store correct/incorrect counts.
-- [ ] Store recent mistakes if useful.
-- [ ] Calculate course completion percentage.
-- [ ] Add Clear/Reset Progress action.
+- [x] Store correct/incorrect counts.
+- [x] Store recent mistakes if useful.
+- [x] Calculate course completion percentage.
+- [x] Add Clear/Reset Progress action.
 - [x] Handle malformed/corrupted local state safely.
 
 Later:
@@ -751,9 +751,9 @@ MVP:
 
 - [x] Course navigation.
 - [x] Lesson navigation.
-- [ ] Previous lesson.
-- [ ] Next lesson.
-- [ ] Continue where I left off.
+- [x] Previous lesson.
+- [x] Next lesson.
+- [x] Continue where I left off.
 
 Later:
 
@@ -895,7 +895,7 @@ Later:
 - [ ] Measure slow D1 queries.
 - [ ] Add indexes based on real query patterns.
 - [ ] Test on slower mobile devices/connections.
-- [ ] Avoid `ORDER BY RANDOM()` for large question-bank sampling.
+- [x] Avoid `ORDER BY RANDOM()` for large question-bank sampling.
 
 ---
 

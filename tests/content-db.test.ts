@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isSupportedLessonBlockType } from "../src/lesson-blocks/lesson-block";
 import { findPublishedLesson, listPublishedLessons, listQuestionsForCourse, listQuestionsForLessons, toBlock, toLesson, toQuestion } from "../worker/db/content";
+import { content } from "../worker/routes/content";
 
 class CapturingDb {
   query = "";
@@ -69,6 +70,31 @@ describe("content data access", () => {
     expect(db.query).not.toContain("question_lessons");
     expect(questions[0].id).toBe(4);
   });
+  it("passes difficulty and a bounded limit to the database query", async () => {
+    const db = new CapturingDb([]);
+    await listQuestionsForCourse(db as unknown as D1Database, 1, { difficulty: "hard", limit: 5 });
+    expect(db.query).toContain("q.difficulty = ?");
+    expect(db.query).toContain("ORDER BY q.id LIMIT ?");
+    expect(db.values).toEqual([1, "hard", 5]);
+  });
+  it("uses bounded ID seeks for random question selection", async () => {
+    const queries: string[] = [];
+    const db = {
+      prepare(query: string) {
+        queries.push(query);
+        return {
+          bind: () => ({
+            first: async () => ({ max_id: 50 }),
+            all: async () => ({ results: [] }),
+          }),
+        };
+      },
+    };
+    await listQuestionsForCourse(db as unknown as D1Database, 1, { random: true, limit: 10 });
+    expect(queries.some((query) => query.includes("SELECT q.id AS max_id") && query.includes("ORDER BY q.id DESC LIMIT 1"))).toBe(true);
+    expect(queries.some((query) => query.includes("q.id >= ?") && query.includes("LIMIT ?"))).toBe(true);
+    expect(queries.join("\n")).not.toContain("ORDER BY RANDOM()");
+  });
   it("omits questions with malformed stored JSON", () => {
     const row = { id: 1, course_id: 1, type: "mcq", prompt_json: '{"ar":"س","en":"Q"}', answer_json: '{"choices":{"ar":["أ"],"en":["A"]},"correctIndex":2}', explanation_json: '{"ar":"ش","en":"E"}', difficulty: "easy" };
     expect(toQuestion(row)).toBeNull();
@@ -78,5 +104,13 @@ describe("content data access", () => {
     expect(isSupportedLessonBlockType("rich-text")).toBe(true);
     expect(isSupportedLessonBlockType("file")).toBe(true);
     expect(isSupportedLessonBlockType("video-script")).toBe(false);
+  });
+});
+
+describe("public question query validation", () => {
+  it("rejects invalid difficulty, limits, and unbounded random requests", async () => {
+    await expect(content.request("http://test/questions?lesson=1&difficulty=beginner")).resolves.toMatchObject({ status: 400 });
+    await expect(content.request("http://test/questions?lesson=1&limit=101")).resolves.toMatchObject({ status: 400 });
+    await expect(content.request("http://test/questions?lesson=1&random=true")).resolves.toMatchObject({ status: 400 });
   });
 });

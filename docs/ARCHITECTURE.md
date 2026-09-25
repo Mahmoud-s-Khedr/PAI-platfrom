@@ -28,7 +28,7 @@ Rich text is still untrusted D1 content. The renderer skips raw HTML, does not u
 
 ## Student state
 
-Language, completed lesson IDs, and question-attempt counts are local-only. `src/storage/student-state.ts` is the small boundary around localStorage, so a later IndexedDB implementation need not affect pages or question rendering. No accounts or server-side progress exist in this phase.
+Language, completed lesson IDs, last-opened lesson, question-attempt/outcome counts, and a bounded list of recent mistakes are local-only. `src/storage/student-state.ts` is the small boundary around localStorage, so a later IndexedDB implementation need not affect pages or question rendering. No accounts or server-side progress exist in this phase.
 
 ## Managed lesson assets
 

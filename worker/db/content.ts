@@ -1,4 +1,4 @@
-import type { Course, Lesson, LessonBlock, LessonSummary, LocalizedText, Question, QuestionDifficulty, QuestionType } from "../../src/lib/types";
+import type { Course, Lesson, LessonBlock, LessonSummary, LocalizedText, Question, QuestionDifficulty, QuestionQueryOptions, QuestionType } from "../../src/lib/types";
 import { z } from "zod";
 import { parseJson } from "../lib/json";
 
@@ -133,6 +133,51 @@ function validQuestions(rows: QuestionRow[]): Question[] {
   });
 }
 
+interface QuestionQuery {
+  from: string;
+  conditions: string[];
+  values: unknown[];
+  distinct?: boolean;
+}
+
+const questionColumns = "q.id, q.course_id, q.type, q.prompt_json, q.answer_json, q.explanation_json, q.difficulty";
+
+function questionWhere(query: QuestionQuery, difficulty?: QuestionDifficulty) {
+  return difficulty ? [...query.conditions, "q.difficulty = ?"] : query.conditions;
+}
+
+function questionValues(query: QuestionQuery, difficulty?: QuestionDifficulty) {
+  return difficulty ? [...query.values, difficulty] : query.values;
+}
+
+function questionSelect(query: QuestionQuery, where: string[], suffix = "") {
+  return `SELECT ${query.distinct ? "DISTINCT " : ""}${questionColumns}\n    ${query.from}\n    WHERE ${where.join(" AND ")} ${suffix}`;
+}
+
+async function questionRows(db: D1Database, query: QuestionQuery, options: QuestionQueryOptions): Promise<QuestionRow[]> {
+  const where = questionWhere(query, options.difficulty);
+  const values = questionValues(query, options.difficulty);
+  const limit = options.limit;
+
+  if (!options.random) {
+    const suffix = `ORDER BY q.id${limit ? " LIMIT ?" : ""}`;
+    const result = await db.prepare(questionSelect(query, where, suffix)).bind(...values, ...(limit ? [limit] : [])).all<QuestionRow>();
+    return result.results;
+  }
+
+  // This deliberately uses a random ID pivot plus two bounded, ordered seeks.
+  // Unlike ORDER BY RANDOM(), it never sorts the entire matching question set.
+  const max = await db.prepare(`SELECT q.id AS max_id\n    ${query.from}\n    WHERE ${where.join(" AND ")}\n    ORDER BY q.id DESC LIMIT 1`).bind(...values).first<{ max_id: number | null }>();
+  if (!max?.max_id || !limit) return [];
+  const pivot = Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32) * (max.max_id + 1));
+  const after = await db.prepare(questionSelect(query, [...where, "q.id >= ?"], "ORDER BY q.id LIMIT ?"))
+    .bind(...values, pivot, limit).all<QuestionRow>();
+  if (after.results.length >= limit) return after.results;
+  const before = await db.prepare(questionSelect(query, [...where, "q.id < ?"], "ORDER BY q.id LIMIT ?"))
+    .bind(...values, pivot, limit - after.results.length).all<QuestionRow>();
+  return [...after.results, ...before.results];
+}
+
 export async function listPublishedCourses(db: D1Database): Promise<Course[]> {
   const result = await db.prepare(`SELECT id, slug, title_ar, title_en, description_ar, description_en, sort_order
     FROM courses WHERE status = 'published' ORDER BY sort_order, id`).all<CourseRow>();
@@ -168,22 +213,26 @@ export async function findPublishedLessonBySlug(db: D1Database, courseId: number
   return row ? toLessonSummary(row) : null;
 }
 
-export async function listQuestionsForLessons(db: D1Database, lessonIds: number[]): Promise<Question[]> {
+export async function listQuestionsForLessons(db: D1Database, lessonIds: number[], options: QuestionQueryOptions = {}): Promise<Question[]> {
   const placeholders = lessonIds.map(() => "?").join(", ");
-  const result = await db.prepare(`SELECT DISTINCT q.id, q.course_id, q.type, q.prompt_json, q.answer_json, q.explanation_json, q.difficulty
-    FROM questions q
+  const rows = await questionRows(db, {
+    from: `FROM questions q
     INNER JOIN question_lessons ql ON ql.question_id = q.id
     INNER JOIN lessons l ON l.id = ql.lesson_id
-    INNER JOIN courses c ON c.id = l.course_id
-    WHERE q.status = 'published' AND l.status = 'published' AND c.status = 'published'
-      AND q.course_id = l.course_id AND ql.lesson_id IN (${placeholders})
-    ORDER BY q.id`).bind(...lessonIds).all<QuestionRow>();
-  return validQuestions(result.results);
+    INNER JOIN courses c ON c.id = l.course_id`,
+    conditions: ["q.status = 'published'", "l.status = 'published'", "c.status = 'published'", "q.course_id = l.course_id", `ql.lesson_id IN (${placeholders})`],
+    values: lessonIds,
+    distinct: true,
+  }, options);
+  return validQuestions(rows);
 }
 
 // Course queries intentionally include both mapped questions and zero-mapping (course-wide) questions.
-export async function listQuestionsForCourse(db: D1Database, courseId: number): Promise<Question[]> {
-  const result = await db.prepare(`SELECT id, course_id, type, prompt_json, answer_json, explanation_json, difficulty
-    FROM questions WHERE course_id = ? AND status = 'published' ORDER BY id`).bind(courseId).all<QuestionRow>();
-  return validQuestions(result.results);
+export async function listQuestionsForCourse(db: D1Database, courseId: number, options: QuestionQueryOptions = {}): Promise<Question[]> {
+  const rows = await questionRows(db, {
+    from: "FROM questions q",
+    conditions: ["q.course_id = ?", "q.status = 'published'"],
+    values: [courseId],
+  }, options);
+  return validQuestions(rows);
 }

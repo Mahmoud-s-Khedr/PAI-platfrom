@@ -1,4 +1,4 @@
-import type { AdminAsset, AdminBlockInput, AdminCourse, AdminCourseInput, AdminDashboard, AdminLesson, AdminLessonBlock, AdminLessonInput, AdminLessonSummary, AdminQuestion, AdminQuestionFilters, AdminQuestionInput, ApiError, AssetKind, AuthUser, Course, Lesson, LessonSummary, Question, SessionResponse } from "./types";
+import type { AdminAsset, AdminBlockInput, AdminCourse, AdminCourseInput, AdminDashboard, AdminLesson, AdminLessonBlock, AdminLessonInput, AdminLessonSummary, AdminQuestion, AdminQuestionFilters, AdminQuestionInput, ApiError, AssetKind, AuthUser, Course, Lesson, LessonSummary, Question, QuestionQueryOptions, SessionResponse } from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init);
@@ -22,7 +22,7 @@ function remove(path: string): Promise<void> { return request<void>(path, { meth
 
 async function upload<T>(path: string, body: FormData): Promise<T> { return request<T>(path, { method: "POST", body }); }
 
-function queryString(filters: AdminQuestionFilters): string {
+function queryString(filters: object): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== "") params.set(key, String(value));
   const query = params.toString();
@@ -34,8 +34,8 @@ export const api = {
   course: (slug: string) => get<Course>(`/api/courses/${encodeURIComponent(slug)}`),
   lessons: (courseSlug: string) => get<LessonSummary[]>(`/api/courses/${encodeURIComponent(courseSlug)}/lessons`),
   lesson: (id: number) => get<Lesson>(`/api/lessons/${id}`),
-  lessonQuestions: (id: number) => get<Question[]>(`/api/questions?lesson=${id}`),
-  courseQuestions: (slug: string) => get<Question[]>(`/api/questions?course=${encodeURIComponent(slug)}`),
+  lessonQuestions: (id: number, options: QuestionQueryOptions = {}) => get<Question[]>(`/api/questions${queryString({ lesson: id, ...options })}`),
+  courseQuestions: (slug: string, options: QuestionQueryOptions = {}) => get<Question[]>(`/api/questions${queryString({ course: slug, ...options })}`),
   session: () => get<SessionResponse>("/api/auth/session"),
   passwordLogin: (email: string, password: string) => post<{ user: AuthUser }>("/api/auth/password", { email, password }),
   adminDashboard: () => get<AdminDashboard>("/api/admin/dashboard"),

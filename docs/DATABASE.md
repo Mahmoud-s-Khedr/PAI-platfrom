@@ -50,3 +50,9 @@ On 2026-09-19, the migration was applied to an empty isolated local D1 persisten
 - A mapping makes a question eligible for a lesson query.
 - A question with multiple mappings is returned only once when querying multiple lessons; the API uses `DISTINCT`.
 - **Zero mappings means course-wide.** Such a question is returned by `GET /api/questions?course=<course-slug>` but is not injected into individual lesson queries. This keeps lesson practice focused while allowing a future course practice surface to include all course questions.
+
+Public question requests can also use `difficulty=easy|medium|hard` and a
+bounded `limit` from 1 to 100. `random=true` requires a limit and selects a
+bounded random ID pivot, then seeks forward (and wraps if necessary). This
+avoids a large-table `ORDER BY RANDOM()` sort while keeping response size
+predictable.

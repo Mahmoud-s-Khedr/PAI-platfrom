@@ -52,6 +52,10 @@ npm run cf-types
 
 These public routes are read-only and expose published content only. Bad input and missing resources use a JSON error object with `error.code` and `error.message`. See [database documentation](docs/DATABASE.md) for course-wide question semantics.
 
+Question requests may add `difficulty=easy|medium|hard` and `limit=1..100`.
+Use `random=true` only with `limit`; it uses bounded ID seeks instead of a
+large-table random sort.
+
 ## Admin API
 
 Protected authoring endpoints live under `/api/admin/*`; they cover course,

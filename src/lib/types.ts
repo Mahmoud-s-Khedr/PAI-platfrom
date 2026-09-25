@@ -47,6 +47,13 @@ export interface Question {
   difficulty: QuestionDifficulty;
 }
 
+/** Optional controls for a public practice-question request. */
+export interface QuestionQueryOptions {
+  difficulty?: QuestionDifficulty;
+  limit?: number;
+  random?: boolean;
+}
+
 export interface ApiError {
   error: { code: string; message: string };
 }

@@ -28,7 +28,12 @@ export function QuestionPractice({ questions, scope = "lesson" }: { questions: Q
     return <Card><CardContent className="py-8 text-center text-muted-foreground">{emptyMessage}</CardContent></Card>;
   }
   const question = questions[index];
-  const check = () => { setResult(gradeQuestion(question, response)); studentState.recordAttempt(question.id); };
+  const check = () => {
+    if (result !== null) return;
+    const correct = gradeQuestion(question, response);
+    setResult(correct);
+    studentState.recordAttempt(question.id, correct);
+  };
   const next = () => { setIndex((index + 1) % questions.length); setResponse(""); setResult(null); };
   return <Card><CardContent className="space-y-6 p-5 sm:p-6"><div className="space-y-2"><div className="text-end text-sm text-muted-foreground">{index + 1} / {questions.length}</div><Progress value={((index + 1) / questions.length) * 100} /></div><h3 className="text-lg font-semibold leading-relaxed">{question.prompt[language]}</h3>
     {question.type === "mcq" && <RadioGroup value={typeof response === "number" ? String(response) : undefined} onValueChange={(value) => setResponse(Number(value))}>{choices(question, language).map((choice, choiceIndex) => <label key={choice} htmlFor={`question-${question.id}-${choiceIndex}`} className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm transition-colors hover:bg-accent has-[:checked]:border-primary has-[:checked]:bg-primary/5"><RadioGroupItem value={String(choiceIndex)} id={`question-${question.id}-${choiceIndex}`} />{choice}</label>)}</RadioGroup>}
