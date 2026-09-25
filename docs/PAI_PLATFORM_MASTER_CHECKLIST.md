@@ -128,10 +128,11 @@ Initial block types:
 
 - [x] `rich-text`
 - [x] `image`
+- [x] `file`
 - [x] `code`
 - [x] `callout`
 - [x] `interactive`
-- [x] Defer `download` until an explicitly scoped asset-delivery flow is needed.
+- [x] Serve downloadable files through the private-R2 asset-delivery flow.
 
 ### Questions
 
@@ -363,7 +364,7 @@ Continue to next lesson
 - [x] Support English caption.
 - [x] Support Arabic alt text.
 - [x] Support English alt text.
-- [ ] Integrate with R2 later.
+- [x] Integrate image and download blocks with private R2 assets.
 
 ### Code Blocks
 
@@ -656,7 +657,7 @@ Later, if multiple staff/admin users exist:
 
 ## 14. R2 / Asset Management
 
-- [ ] Create R2 bucket.
+- [x] Create a private R2 bucket before production deployment.
 - [x] Configure Worker R2 binding.
 - [x] Upload images.
 - [x] Upload worksheets.
@@ -1071,7 +1072,7 @@ Do **not** make these prerequisites for launch:
 - [x] Lesson management API.
 - [x] Block authoring API.
 - [x] Question-bank authoring API.
-- [ ] R2 image/file uploads.
+- [x] R2 image/file uploads.
 - [ ] Draft/preview/publish workflow.
 - [x] Public API remains published-content-only.
 

@@ -1,4 +1,4 @@
-import type { ChangeEvent, ReactNode } from "react";
+import { cloneElement, isValidElement, useId, type ChangeEvent, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,8 +19,12 @@ export function formatAdminDate(value: string, language: "ar" | "en") {
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(language === "ar" ? "ar-EG" : "en", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
-export function Field({ label, children }: { label: string; children: ReactNode }) {
-  return <label className="grid gap-1.5 text-sm font-medium">{label}{children}</label>;
+export function Field({ label, children, error }: { label: string; children: ReactNode; error?: string }) {
+  const errorId = useId();
+  const control = isValidElement<{ className?: string; "aria-invalid"?: boolean; "aria-describedby"?: string }>(children)
+    ? cloneElement(children, error ? { className: `${children.props.className ?? ""} aria-invalid:border-destructive`, "aria-invalid": true, "aria-describedby": errorId } : {})
+    : children;
+  return <label className="grid gap-1.5 text-sm font-medium">{label}{control}{error && <span id={errorId} className="text-sm font-normal text-destructive" role="alert">{error}</span>}</label>;
 }
 
 export function StatusSelect({ value, onChange, language }: { value: ContentStatus; onChange: (value: ContentStatus) => void; language: "ar" | "en" }) {
@@ -29,8 +33,8 @@ export function StatusSelect({ value, onChange, language }: { value: ContentStat
   </select>;
 }
 
-export function LocalizedFields({ value, onChange, label, multiline = false, required = true }: { value: LocalizedText; onChange: (value: LocalizedText) => void; label: string; multiline?: boolean; required?: boolean }) {
-  const change = (key: keyof LocalizedText) => (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onChange({ ...value, [key]: event.target.value });
+export function LocalizedFields({ value, onChange, onFieldChange, label, multiline = false, required = true, errors }: { value: LocalizedText; onChange: (value: LocalizedText) => void; onFieldChange?: (key: keyof LocalizedText) => void; label: string; multiline?: boolean; required?: boolean; errors?: Partial<Record<keyof LocalizedText, string>> }) {
+  const change = (key: keyof LocalizedText) => (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { onChange({ ...value, [key]: event.target.value }); onFieldChange?.(key); };
   const Control = multiline ? Textarea : Input;
-  return <fieldset className="grid gap-3"><legend className="text-sm font-medium">{label}</legend><div className="grid gap-3 sm:grid-cols-2"><Field label={`${adminCopy.ar.arabic} / Arabic`}><Control value={value.ar} onChange={change("ar")} dir="rtl" lang="ar" required={required} /></Field><Field label={adminCopy.en.english}><Control value={value.en} onChange={change("en")} dir="ltr" lang="en" required={required} /></Field></div></fieldset>;
+  return <fieldset className="grid gap-3"><legend className="text-sm font-medium">{label}</legend><div className="grid gap-3 sm:grid-cols-2"><Field label={`${adminCopy.ar.arabic} / Arabic`} error={errors?.ar}><Control value={value.ar} onChange={change("ar")} dir="rtl" lang="ar" required={required} aria-invalid={Boolean(errors?.ar) || undefined} /></Field><Field label={adminCopy.en.english} error={errors?.en}><Control value={value.en} onChange={change("en")} dir="ltr" lang="en" required={required} aria-invalid={Boolean(errors?.en) || undefined} /></Field></div></fieldset>;
 }

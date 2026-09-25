@@ -39,13 +39,19 @@ interface QuestionRow extends Record<string, unknown> {
 }
 
 const localizedTextSchema = z.object({ ar: z.string(), en: z.string() });
-const lessonBlockTypeSchema = z.enum(["rich-text", "image", "code", "callout", "interactive"]);
+const lessonBlockTypeSchema = z.enum(["rich-text", "image", "file", "code", "callout", "interactive"]);
 const blockDataSchemas = {
   "rich-text": localizedTextSchema,
   image: z.object({
     src: z.string(),
+    assetId: z.number().int().positive().optional(),
     alt: localizedTextSchema.optional(),
     caption: localizedTextSchema.optional(),
+  }),
+  file: z.object({
+    assetId: z.number().int().positive(),
+    title: localizedTextSchema,
+    description: localizedTextSchema.optional(),
   }),
   code: z.object({ language: z.string().optional(), code: z.string() }),
   callout: localizedTextSchema.extend({ tone: z.string().optional() }),

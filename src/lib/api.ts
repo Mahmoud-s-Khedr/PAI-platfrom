@@ -43,6 +43,7 @@ export const api = {
   adminCourse: (id: number) => get<AdminCourse>(`/api/admin/courses/${id}`),
   createAdminCourse: (input: AdminCourseInput) => post<AdminCourse>("/api/admin/courses", input),
   updateAdminCourse: (id: number, input: Partial<AdminCourseInput>) => patch<AdminCourse>(`/api/admin/courses/${id}`, input),
+  deleteAdminCourse: (id: number) => remove(`/api/admin/courses/${id}`),
   adminCourseLessons: (courseId: number) => get<AdminLessonSummary[]>(`/api/admin/courses/${courseId}/lessons`),
   adminLesson: (id: number) => get<AdminLesson>(`/api/admin/lessons/${id}`),
   createAdminLesson: (input: AdminLessonInput) => post<AdminLesson>("/api/admin/lessons", input),

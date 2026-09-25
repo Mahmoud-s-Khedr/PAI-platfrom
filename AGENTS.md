@@ -11,7 +11,7 @@ This is the Phase 1 foundation for an Egyptian secondary-school Programming & Ar
 ## Architecture
 
 ```text
-React SPA (src/) → same-origin /api/* → Hono Worker (worker/) → Cloudflare D1
+React SPA (src/) → same-origin /api/* → Hono Worker (worker/) → Cloudflare D1 + private R2
 ```
 
 - The UI uses React, TypeScript, Vite, React Router, Tailwind CSS, and locally owned shadcn/ui components in `src/components/ui`; prefer those components over new custom primitives.
@@ -74,9 +74,9 @@ npm run build
 - TypeScript types do not validate JSON at runtime. Validate request inputs in Worker routes and parse and validate D1 JSON at the database-to-domain mapping boundary.
 - Treat `data_json`, `prompt_json`, `answer_json`, `explanation_json`, `metadata_json`, and similar stored JSON as untrusted. Handle invalid stored JSON in a controlled way before exposing typed domain/API objects.
 - Avoid scattered unchecked `JSON.parse(...) as SomeType` casts; centralize mapping and validation where practical.
-- `rich-text` blocks are localized plain text rendered as paragraphs, not Markdown or HTML. Keep stored HTML as text; never inject unsafe D1 HTML or execute D1 JavaScript.
+- `rich-text` blocks are localized safe Markdown. Keep raw HTML as text; never inject unsafe D1 HTML or execute D1 JavaScript. Markdown images remain disabled in favor of validated image blocks.
 - New interactive types must be explicitly registered in `src/interactives/registry.tsx`. Unknown lesson block or interactive types should remain contained with a user-visible notice.
-- Do not add a backend write path, authentication, server-side student progress, R2 asset handling, or a content-ingestion flow without an explicit scope change.
+- Existing admin authentication and private-R2 asset delivery are explicitly in scope. Do not add student accounts, server-side student progress, public R2 buckets, or a content-ingestion flow without an explicit scope change.
 
 ## Data and API changes
 

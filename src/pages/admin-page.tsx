@@ -12,6 +12,11 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { api } from "../lib/api";
+import {
+  type AdminCourseField,
+  type AdminCourseFormErrors,
+  validateAdminCourse,
+} from "../lib/admin-course-validation";
 import type { AdminCourseInput, AdminDashboard } from "../lib/types";
 import {
   Field,
@@ -25,7 +30,9 @@ export function AdminPage() {
   const { language } = useLanguage();
   const navigate = useNavigate();
   const [dashboard, setDashboard] = useState<AdminDashboard | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [courseErrors, setCourseErrors] = useState<AdminCourseFormErrors>({});
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newCourse, setNewCourse] = useState<AdminCourseInput>({
@@ -40,7 +47,7 @@ export function AdminPage() {
       .adminDashboard()
       .then(setDashboard)
       .catch((reason: unknown) =>
-        setError(
+        setLoadError(
           reason instanceof Error
             ? reason.message
             : language === "ar"
@@ -49,34 +56,50 @@ export function AdminPage() {
         ),
       );
   }, [language]);
+
+  function updateNewCourse(
+    next: AdminCourseInput,
+    changedFields: AdminCourseField[],
+  ) {
+    setNewCourse(next);
+    setCourseErrors((current) => {
+      const nextErrors = { ...current };
+      changedFields.forEach((field) => delete nextErrors[field]);
+      return nextErrors;
+    });
+    setSubmitError(null);
+  }
+
   async function createCourse(event: FormEvent) {
     event.preventDefault();
+    const errors = validateAdminCourse(newCourse, language);
+    setCourseErrors(errors);
+    setSubmitError(null);
+    if (Object.keys(errors).length > 0) return;
     setSaving(true);
-    setError(null);
     try {
       const course = await api.createAdminCourse(newCourse);
       navigate(`/admin/courses/${course.id}`);
     } catch (reason) {
-      setError(
-        reason instanceof Error ? reason.message : "Unable to create course",
+      setSubmitError(
+        reason instanceof Error
+          ? reason.message
+          : language === "ar"
+            ? "تعذّر إنشاء المقرر"
+            : "Unable to create course",
       );
     } finally {
       setSaving(false);
     }
   }
   return (
-    <AsyncView loading={!dashboard && !error} error={error}>
+    <AsyncView loading={!dashboard && !loadError} error={loadError}>
       <section className="space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">
               {language === "ar" ? "إدارة المحتوى" : "Content management"}
             </h1>
-            <p className="mt-1 text-muted-foreground">
-              {language === "ar"
-                ? "أدر المقررات والدروس وبنك الأسئلة المنشور والمسودات."
-                : "Manage courses, lessons, published content, and drafts."}
-            </p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" asChild>
@@ -105,34 +128,43 @@ export function AdminPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <form className="space-y-4" onSubmit={createCourse}>
+              <form className="space-y-4" onSubmit={createCourse} noValidate>
+                {submitError && (
+                  <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+                    {submitError}
+                  </p>
+                )}
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label={language === "ar" ? "المعرّف" : "Slug"}>
+                  <Field label={language === "ar" ? "المعرّف" : "Slug"} error={courseErrors.slug}>
                     <input
-                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm aria-invalid:border-destructive"
                       value={newCourse.slug}
-                      onChange={(event) =>
-                        setNewCourse({ ...newCourse, slug: event.target.value })
-                      }
-                      required
+                      onChange={(event) => {
+                        updateNewCourse(
+                          { ...newCourse, slug: event.target.value },
+                          ["slug"],
+                        );
+                      }}
+                      aria-invalid={Boolean(courseErrors.slug) || undefined}
                       dir="ltr"
                     />
                   </Field>
                   <Field
                     label={language === "ar" ? "ترتيب العرض" : "Display order"}
+                    error={courseErrors.sortOrder}
                   >
                     <input
-                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm aria-invalid:border-destructive"
                       type="number"
                       min="0"
                       value={newCourse.sortOrder}
-                      onChange={(event) =>
-                        setNewCourse({
-                          ...newCourse,
-                          sortOrder: Number(event.target.value),
-                        })
-                      }
-                      required
+                      onChange={(event) => {
+                        updateNewCourse(
+                          { ...newCourse, sortOrder: Number(event.target.value) },
+                          ["sortOrder"],
+                        );
+                      }}
+                      aria-invalid={Boolean(courseErrors.sortOrder) || undefined}
                     />
                   </Field>
                 </div>
@@ -140,14 +172,17 @@ export function AdminPage() {
                   label={language === "ar" ? "العنوان" : "Title"}
                   value={newCourse.title}
                   onChange={(title) => setNewCourse({ ...newCourse, title })}
+                  onFieldChange={(key) => { setCourseErrors((current) => { const next = { ...current }; delete next[`title.${key}` as AdminCourseField]; return next; }); setSubmitError(null); }}
+                  errors={{ ar: courseErrors["title.ar"], en: courseErrors["title.en"] }}
                 />
                 <LocalizedFields
                   label={language === "ar" ? "الوصف" : "Description"}
                   value={newCourse.description}
-                  onChange={(description) =>
-                    setNewCourse({ ...newCourse, description })
-                  }
+                  onChange={(description) => setNewCourse({ ...newCourse, description })}
+                  onFieldChange={(key) => { setCourseErrors((current) => { const next = { ...current }; delete next[`description.${key}` as AdminCourseField]; return next; }); setSubmitError(null); }}
                   multiline
+                  required={false}
+                  errors={{ ar: courseErrors["description.ar"], en: courseErrors["description.en"] }}
                 />
                 <div className="max-w-xs">
                   <Field label={language === "ar" ? "الحالة" : "Status"}>

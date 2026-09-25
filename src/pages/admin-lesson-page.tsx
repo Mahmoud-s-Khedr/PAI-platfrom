@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
+  FileText,
   Plus,
   Trash2,
   Upload,
@@ -42,10 +43,16 @@ import {
 } from "./admin-shared";
 import { MarkdownRenderer } from "../lesson-blocks/markdown-renderer";
 import { LessonBlock } from "../lesson-blocks/lesson-block";
+import { validateAdminAsset, validateAdminBlock, validateAdminLesson, type FormErrors } from "../lib/admin-validation";
+import {
+  interactiveComponentDetails,
+  registeredInteractiveComponentIds,
+} from "../interactives/component-ids";
 
 const blockLabels = {
   "rich-text": { ar: "نص", en: "Rich text" },
   image: { ar: "صورة", en: "Image" },
+  file: { ar: "ملف قابل للتنزيل", en: "Downloadable file" },
   code: { ar: "رمز برمجي", en: "Code" },
   callout: { ar: "تنبيه", en: "Callout" },
   interactive: { ar: "تفاعل", en: "Interactive" },
@@ -53,6 +60,7 @@ const blockLabels = {
 const blockTypes: LessonBlockType[] = [
   "rich-text",
   "image",
+  "file",
   "code",
   "callout",
   "interactive",
@@ -77,6 +85,12 @@ function blankData(type: LessonBlockType): unknown {
       alt: { ar: "", en: "" },
       caption: { ar: "", en: "" },
     };
+  if (type === "file")
+    return {
+      assetId: undefined,
+      title: { ar: "", en: "" },
+      description: { ar: "", en: "" },
+    };
   if (type === "code") return { language: "python", code: "" };
   if (type === "callout") return { ar: "ملاحظة", en: "Note", tone: "note" };
   return { component: "", props: {} };
@@ -96,10 +110,12 @@ function localText(value: unknown): LocalizedText {
 function RichTextEditor({
   value,
   onChange,
+  onFieldChange,
   language,
 }: {
   value: LocalizedText;
   onChange: (value: LocalizedText) => void;
+  onFieldChange?: (key: keyof LocalizedText) => void;
   language: "ar" | "en";
 }) {
   const [showPreview, setShowPreview] = useState(false);
@@ -132,6 +148,7 @@ function RichTextEditor({
         label={language === "ar" ? "المحتوى" : "Content"}
         value={value}
         onChange={onChange}
+        onFieldChange={onFieldChange}
         multiline
       />
       <details className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
@@ -171,6 +188,7 @@ function ImageAssetPicker({
   const [assets, setAssets] = useState<AdminAsset[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   useEffect(() => {
     void api
       .adminAssets()
@@ -186,9 +204,11 @@ function ImageAssetPicker({
   const selectedId =
     typeof data.assetId === "number" ? String(data.assetId) : "";
   async function upload(file: File | null) {
+    const validation = validateAdminAsset("image", file, language);
+    if (validation.file) { setFileError(validation.file); return; }
     if (!file) return;
     setUploading(true);
-    setError(null);
+    setError(null); setFileError(null);
     try {
       const asset = await api.uploadAdminAsset("image", file);
       setAssets((items) => [asset, ...items]);
@@ -232,12 +252,13 @@ function ImageAssetPicker({
       </Field>
       <Field
         label={language === "ar" ? "رفع صورة جديدة" : "Upload a new image"}
+        error={fileError ?? undefined}
       >
         <Input
           type="file"
           accept="image/jpeg,image/png,image/webp,image/gif"
           disabled={uploading}
-          onChange={(event) => void upload(event.target.files?.[0] ?? null)}
+          onChange={(event) => { setFileError(null); void upload(event.target.files?.[0] ?? null); }}
         />
       </Field>
       <p className="text-xs text-muted-foreground">
@@ -254,6 +275,112 @@ function ImageAssetPicker({
       {error && (
         <p className="text-sm text-destructive" role="alert">
           {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function FileAssetPicker({
+  data,
+  onChange,
+  language,
+  error,
+}: {
+  data: Record<string, unknown>;
+  onChange: (data: Record<string, unknown>) => void;
+  language: "ar" | "en";
+  error?: string;
+}) {
+  const [assets, setAssets] = useState<AdminAsset[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  useEffect(() => {
+    void api
+      .adminAssets()
+      .then((items) => setAssets(items.filter((asset) => asset.kind !== "image")))
+      .catch((reason: unknown) =>
+        setUploadError(
+          reason instanceof Error ? reason.message : "Unable to load files",
+        ),
+      );
+  }, []);
+  const selectedId =
+    typeof data.assetId === "number" ? String(data.assetId) : "";
+  async function upload(file: File | null) {
+    const validation = validateAdminAsset("resource", file, language);
+    if (validation.file) {
+      setFileError(validation.file);
+      return;
+    }
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    setFileError(null);
+    try {
+      const asset = await api.uploadAdminAsset("resource", file);
+      setAssets((items) => [asset, ...items]);
+      onChange({ ...data, assetId: asset.id });
+    } catch (reason) {
+      setUploadError(
+        reason instanceof Error ? reason.message : "Unable to upload file",
+      );
+    } finally {
+      setUploading(false);
+    }
+  }
+  return (
+    <div className="space-y-4 rounded-lg border bg-muted/20 p-3">
+      <Field label={language === "ar" ? "ملف مرفوع" : "Uploaded file"} error={error}>
+        <select
+          className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+          value={selectedId}
+          onChange={(event) =>
+            onChange({
+              ...data,
+              assetId: event.target.value ? Number(event.target.value) : undefined,
+            })
+          }
+        >
+          <option value="">
+            {language === "ar" ? "اختر ملفًا…" : "Select a file…"}
+          </option>
+          {assets.map((asset) => (
+            <option key={asset.id} value={asset.id}>
+              {asset.fileName}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field
+        label={language === "ar" ? "أو ارفع ملفًا جديدًا" : "Or upload a new file"}
+        error={fileError ?? undefined}
+      >
+        <Input
+          type="file"
+          accept=".pdf,.zip,.docx,.xlsx,.csv,.json,.yaml,.yml,.toml,.txt,application/pdf,application/zip,application/x-zip-compressed,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/csv,application/json,application/x-yaml,text/yaml,text/x-yaml,application/toml"
+          disabled={uploading}
+          onChange={(event) => {
+            setFileError(null);
+            void upload(event.target.files?.[0] ?? null);
+          }}
+        />
+      </Field>
+      <p className="text-xs text-muted-foreground">
+        {language === "ar"
+          ? "PDF وZIP وDOCX وXLSX وCSV وJSON وYAML وTOML وTXT حتى 20 ميغابايت."
+          : "PDF, ZIP, DOCX, XLSX, CSV, JSON, YAML, TOML, or TXT up to 20 MB."}
+      </p>
+      {uploading && (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Upload className="size-4" />
+          {language === "ar" ? "جارٍ الرفع…" : "Uploading…"}
+        </p>
+      )}
+      {uploadError && (
+        <p className="text-sm text-destructive" role="alert">
+          {uploadError}
         </p>
       )}
     </div>
@@ -282,32 +409,82 @@ function BlockEditor({
     block.data ?? blankData(block.type as LessonBlockType),
   );
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveNotice, setSaveNotice] = useState<{
+    tone: "success" | "error";
+    message: string;
+  } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [propsJson, setPropsJson] = useState(() => JSON.stringify((block.data && typeof block.data === "object" && !Array.isArray(block.data) ? (block.data as Record<string, unknown>).props : {}) ?? {}, null, 2));
   const text = localText(data);
   const objectData =
     data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  const selectedInteractiveComponent =
+    typeof objectData.component === "string" &&
+    registeredInteractiveComponentIds.includes(
+      objectData.component as (typeof registeredInteractiveComponentIds)[number],
+    )
+      ? (objectData.component as (typeof registeredInteractiveComponentIds)[number])
+      : "";
   const setText = (next: LocalizedText) =>
     setData(type === "callout" ? { ...objectData, ...next } : next);
   const setObject = (next: Record<string, unknown>) => setData(next);
+  useEffect(() => {
+    if (!saveNotice || saveNotice.tone !== "success") return;
+    const timeout = window.setTimeout(() => setSaveNotice(null), 4_000);
+    return () => window.clearTimeout(timeout);
+  }, [saveNotice]);
   async function submit(event: FormEvent) {
     event.preventDefault();
     setSaveError(null);
-    const imageData =
+    setSaveNotice(null);
+    let submittedData = data;
+    if (type === "interactive") {
+      try {
+        const props = JSON.parse(propsJson);
+        if (!props || typeof props !== "object" || Array.isArray(props)) throw new Error("props must be an object");
+        submittedData = { ...objectData, props };
+      } catch {
+        setErrors((current) => ({ ...current, "data.props": language === "ar" ? "يجب أن تكون الخصائص JSON صالحًا على هيئة كائن." : "Props must be valid JSON represented by an object." }));
+        return;
+      }
+    }
+    const blockData =
       type === "image"
         ? {
             ...objectData,
-            ...(Object.values(localText(objectData.caption)).some((value) =>
-              value.trim(),
-            )
-              ? {}
-              : { caption: undefined }),
+            ...(Object.values(localText(objectData.caption)).some((value) => value.trim()) ? {} : { caption: undefined }),
+            ...(Object.values(localText(objectData.alt)).some((value) => value.trim()) ? {} : { alt: undefined }),
           }
-        : data;
+        : type === "file"
+          ? {
+              ...objectData,
+              ...(Object.values(localText(objectData.description)).some((value) => value.trim())
+                ? {}
+                : { description: undefined }),
+            }
+          : submittedData;
+    const validation = validateAdminBlock({ type, data: blockData, sortOrder: block.sortOrder }, language);
+    setErrors(validation);
+    if (Object.keys(validation).length) return;
     try {
-      await onSave({ type, data: imageData, sortOrder: block.sortOrder });
+      setIsSubmitting(true);
+      await onSave({ type, data: blockData, sortOrder: block.sortOrder });
+      setData(blockData);
+      setSaveNotice({
+        tone: "success",
+        message: language === "ar" ? "تم حفظ الكتلة." : "Block saved.",
+      });
     } catch (reason) {
-      setSaveError(
-        reason instanceof Error ? reason.message : "Unable to save block",
-      );
+      const message =
+        reason instanceof Error ? reason.message : "Unable to save block";
+      setSaveError(message);
+      setSaveNotice({
+        tone: "error",
+        message,
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   }
   return (
@@ -354,7 +531,7 @@ function BlockEditor({
         </div>
       </CardHeader>
       <CardContent>
-        <form className="space-y-4" onSubmit={submit}>
+        <form className="space-y-4" onSubmit={submit} noValidate>
           <Field label={language === "ar" ? "نوع الكتلة" : "Block type"}>
             <select
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
@@ -363,6 +540,7 @@ function BlockEditor({
                 const next = event.target.value as LessonBlockType;
                 setType(next);
                 setData(blankData(next));
+                setPropsJson("{}");
               }}
             >
               {blockTypes.map((option) => (
@@ -376,6 +554,7 @@ function BlockEditor({
             <RichTextEditor
               value={text}
               onChange={setText}
+              onFieldChange={(key) => setErrors(({ [`data.${key}`]: _, ...rest }) => rest)}
               language={language}
             />
           )}
@@ -383,22 +562,23 @@ function BlockEditor({
             <div className="space-y-4">
               <ImageAssetPicker
                 data={objectData}
-                onChange={setObject}
+                onChange={(next) => { setObject(next); setErrors(({ "data.src": _src, "data.assetId": _asset, ...rest }) => rest); }}
                 language={language}
               />
-              <Field label={language === "ar" ? "رابط الصورة" : "Image URL"}>
+              <Field label={language === "ar" ? "رابط الصورة" : "Image URL"} error={errors["data.src"]}>
                 <Input
                   value={
                     typeof objectData.src === "string" ? objectData.src : ""
                   }
                   dir="ltr"
-                  onChange={(event) =>
+                  onChange={(event) => {
                     setObject({
                       ...objectData,
                       src: event.target.value,
                       assetId: undefined,
-                    })
-                  }
+                    });
+                    setErrors(({ "data.src": _src, "data.assetId": _asset, ...rest }) => rest);
+                  }}
                   required
                 />
               </Field>
@@ -406,18 +586,65 @@ function BlockEditor({
                 label={language === "ar" ? "النص البديل" : "Alt text"}
                 value={localText(objectData.alt)}
                 onChange={(alt) => setObject({ ...objectData, alt })}
+                onFieldChange={(key) => setErrors(({ [`data.alt.${key}`]: _, ...rest }) => rest)}
+                errors={{ ar: errors["data.alt.ar"], en: errors["data.alt.en"] }}
               />
               <LocalizedFields
                 label={language === "ar" ? "التعليق" : "Caption"}
                 value={localText(objectData.caption)}
                 onChange={(caption) => setObject({ ...objectData, caption })}
+                onFieldChange={(key) => setErrors(({ [`data.caption.${key}`]: _, ...rest }) => rest)}
                 required={false}
+                errors={{ ar: errors["data.caption.ar"], en: errors["data.caption.en"] }}
+              />
+            </div>
+          )}
+          {type === "file" && (
+            <div className="space-y-4">
+              <div className="flex gap-3 rounded-lg border bg-muted/20 p-3 text-sm text-muted-foreground">
+                <FileText className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
+                <p>
+                  {language === "ar"
+                    ? "اختر ملفًا مرفوعًا أو ارفع ملفًا جديدًا. سيُنزل الطالب الملف بدل عرضه داخل المنصة."
+                    : "Select an uploaded file or add a new one. Students download files instead of opening them inside the platform."}
+                </p>
+              </div>
+              <FileAssetPicker
+                data={objectData}
+                onChange={(next) => {
+                  setObject(next);
+                  setErrors(({ "data.assetId": _asset, ...rest }) => rest);
+                }}
+                language={language}
+                error={errors["data.assetId"]}
+              />
+              <LocalizedFields
+                label={language === "ar" ? "عنوان الملف" : "File title"}
+                value={localText(objectData.title)}
+                onChange={(title) => setObject({ ...objectData, title })}
+                onFieldChange={(key) =>
+                  setErrors(({ [`data.title.${key}`]: _, ...rest }) => rest)
+                }
+                errors={{ ar: errors["data.title.ar"], en: errors["data.title.en"] }}
+              />
+              <LocalizedFields
+                label={language === "ar" ? "وصف الملف" : "File description"}
+                value={localText(objectData.description)}
+                onChange={(description) => setObject({ ...objectData, description })}
+                onFieldChange={(key) =>
+                  setErrors(({ [`data.description.${key}`]: _, ...rest }) => rest)
+                }
+                required={false}
+                errors={{
+                  ar: errors["data.description.ar"],
+                  en: errors["data.description.en"],
+                }}
               />
             </div>
           )}
           {type === "code" && (
             <div className="grid gap-4">
-              <Field label={language === "ar" ? "اللغة" : "Language"}>
+              <Field label={language === "ar" ? "اللغة" : "Language"} error={errors["data.language"]}>
                 <Input
                   value={
                     typeof objectData.language === "string"
@@ -426,11 +653,11 @@ function BlockEditor({
                   }
                   dir="ltr"
                   onChange={(event) =>
-                    setObject({ ...objectData, language: event.target.value })
+                    { setObject({ ...objectData, language: event.target.value }); setErrors(({ "data.language": _language, ...rest }) => rest); }
                   }
                 />
               </Field>
-              <Field label={language === "ar" ? "الرمز البرمجي" : "Code"}>
+              <Field label={language === "ar" ? "الرمز البرمجي" : "Code"} error={errors["data.code"]}>
                 <Textarea
                   className="min-h-40 font-mono"
                   dir="ltr"
@@ -438,7 +665,7 @@ function BlockEditor({
                     typeof objectData.code === "string" ? objectData.code : ""
                   }
                   onChange={(event) =>
-                    setObject({ ...objectData, code: event.target.value })
+                    { setObject({ ...objectData, code: event.target.value }); setErrors(({ "data.code": _code, ...rest }) => rest); }
                   }
                   required
                 />
@@ -451,15 +678,17 @@ function BlockEditor({
                 label={language === "ar" ? "محتوى التنبيه" : "Callout content"}
                 value={text}
                 onChange={setText}
+                onFieldChange={(key) => setErrors(({ [`data.${key}`]: _, ...rest }) => rest)}
                 multiline
+                errors={{ ar: errors["data.ar"], en: errors["data.en"] }}
               />
-              <Field label={language === "ar" ? "النمط" : "Tone"}>
+              <Field label={language === "ar" ? "النمط" : "Tone"} error={errors["data.tone"]}>
                 <Input
                   value={
                     typeof objectData.tone === "string" ? objectData.tone : ""
                   }
                   onChange={(event) =>
-                    setObject({ ...objectData, tone: event.target.value })
+                    { setObject({ ...objectData, tone: event.target.value }); setErrors(({ "data.tone": _tone, ...rest }) => rest); }
                   }
                   required
                 />
@@ -468,48 +697,61 @@ function BlockEditor({
           )}
           {type === "interactive" && (
             <div className="space-y-4">
-              <Field
-                label={
-                  language === "ar"
-                    ? "اسم المكوّن المسجّل"
-                    : "Registered component"
-                }
-              >
-                <Input
-                  dir="ltr"
-                  value={
-                    typeof objectData.component === "string"
-                      ? objectData.component
-                      : ""
-                  }
-                  onChange={(event) =>
-                    setObject({ ...objectData, component: event.target.value })
-                  }
-                  required
-                />
-              </Field>
-              <Field label={language === "ar" ? "خصائص JSON" : "JSON props"}>
-                <Textarea
-                  dir="ltr"
-                  className="min-h-28 font-mono"
-                  defaultValue={JSON.stringify(objectData.props ?? {}, null, 2)}
-                  onBlur={(event) => {
-                    try {
+              <div className="rounded-lg border bg-muted/20 p-4">
+                <div className="mb-4 space-y-1">
+                  <h3 className="font-medium">
+                    {language === "ar" ? "اختر نشاطًا" : "Choose an activity"}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {language === "ar"
+                      ? "تظهر للطلاب الأنشطة المسجّلة فقط."
+                      : "Only registered activities can be shown to students."}
+                  </p>
+                </div>
+                <Field
+                  error={errors["data.component"]}
+                  label={language === "ar" ? "النشاط التفاعلي" : "Interactive activity"}
+                >
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={selectedInteractiveComponent}
+                    onChange={(event) => {
                       setObject({
                         ...objectData,
-                        props: JSON.parse(event.target.value),
+                        component: event.target.value,
+                        props: {},
                       });
-                      setSaveError(null);
-                    } catch {
-                      setSaveError(
-                        language === "ar"
-                          ? "خصائص JSON غير صالحة"
-                          : "Props must be valid JSON",
-                      );
-                    }
-                  }}
-                />
-              </Field>
+                      setPropsJson("{}");
+                      setErrors(({ "data.component": _component, "data.props": _props, ...rest }) => rest);
+                    }}
+                    required
+                  >
+                    <option value="">
+                      {language === "ar" ? "اختر نشاطًا…" : "Select an activity…"}
+                    </option>
+                    {registeredInteractiveComponentIds.map((component) => (
+                      <option key={component} value={component}>
+                        {interactiveComponentDetails[component].title[language]}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                {selectedInteractiveComponent && (
+                  <div className="mt-4 rounded-md border bg-background p-3">
+                    <p className="font-medium">
+                      {interactiveComponentDetails[selectedInteractiveComponent].title[language]}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {interactiveComponentDetails[selectedInteractiveComponent].description[language]}
+                    </p>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      {language === "ar"
+                        ? "لا يحتاج هذا النشاط إلى إعدادات إضافية حاليًا."
+                        : "This activity does not need any additional setup yet."}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
           {saveError && (
@@ -517,11 +759,30 @@ function BlockEditor({
               {saveError}
             </p>
           )}
-          <Button disabled={saving}>
-            {language === "ar" ? "حفظ الكتلة" : "Save block"}
+          <Button disabled={saving || isSubmitting}>
+            {isSubmitting
+              ? language === "ar"
+                ? "جارٍ الحفظ…"
+                : "Saving…"
+              : language === "ar"
+                ? "حفظ الكتلة"
+                : "Save block"}
           </Button>
         </form>
       </CardContent>
+      {saveNotice && (
+        <div
+          className={`fixed bottom-4 start-4 z-50 max-w-sm rounded-lg border px-4 py-3 text-sm shadow-lg ${
+            saveNotice.tone === "success"
+              ? "border-green-700/30 bg-green-50 text-green-950 dark:bg-green-950 dark:text-green-50"
+              : "border-destructive/30 bg-destructive/10 text-destructive"
+          }`}
+          role={saveNotice.tone === "error" ? "alert" : "status"}
+          aria-live={saveNotice.tone === "error" ? "assertive" : "polite"}
+        >
+          {saveNotice.message}
+        </div>
+      )}
     </Card>
   );
 }
@@ -533,12 +794,14 @@ export function AdminLessonPage() {
   const id = Number(lessonId);
   const [lesson, setLesson] = useState<AdminLesson | null>(null);
   const [form, setForm] = useState<AdminLessonInput | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   useEffect(() => {
     if (!Number.isInteger(id) || id < 1) {
-      setError(
+      setLoadError(
         language === "ar" ? "معرّف الدرس غير صالح" : "Invalid lesson id",
       );
       return;
@@ -550,7 +813,7 @@ export function AdminLessonPage() {
         setForm(lessonForm(loaded));
       })
       .catch((reason: unknown) =>
-        setError(
+        setLoadError(
           reason instanceof Error ? reason.message : "Unable to load lesson",
         ),
       );
@@ -558,14 +821,17 @@ export function AdminLessonPage() {
   async function saveLesson(event: FormEvent) {
     event.preventDefault();
     if (!form) return;
+    const validation = validateAdminLesson(form, language);
+    setFormErrors(validation);
+    if (Object.keys(validation).length) return;
     setSaving(true);
-    setError(null);
+    setActionError(null);
     try {
       const updated = await api.updateAdminLesson(id, form);
       setLesson(updated);
       setForm(lessonForm(updated));
     } catch (reason) {
-      setError(
+      setActionError(
         reason instanceof Error ? reason.message : "Unable to save lesson",
       );
     } finally {
@@ -593,7 +859,7 @@ export function AdminLessonPage() {
   async function addBlock() {
     if (!lesson) return;
     setSaving(true);
-    setError(null);
+    setActionError(null);
     try {
       const sortOrder =
         Math.max(0, ...lesson.blocks.map((block) => block.sortOrder)) + 1;
@@ -604,7 +870,7 @@ export function AdminLessonPage() {
       });
       setLesson({ ...lesson, blocks: [...lesson.blocks, block] });
     } catch (reason) {
-      setError(
+      setActionError(
         reason instanceof Error ? reason.message : "Unable to add block",
       );
     } finally {
@@ -627,7 +893,7 @@ export function AdminLessonPage() {
         blocks: lesson.blocks.filter((block) => block.id !== blockId),
       });
     } catch (reason) {
-      setError(
+      setActionError(
         reason instanceof Error ? reason.message : "Unable to delete block",
       );
     } finally {
@@ -649,7 +915,7 @@ export function AdminLessonPage() {
         ),
       );
     } catch (reason) {
-      setError(
+      setActionError(
         reason instanceof Error ? reason.message : "Unable to reorder blocks",
       );
     } finally {
@@ -671,7 +937,7 @@ export function AdminLessonPage() {
       await api.archiveAdminLesson(id);
       navigate(`/admin/courses/${lesson.courseId}`);
     } catch (reason) {
-      setError(
+      setActionError(
         reason instanceof Error ? reason.message : "Unable to archive lesson",
       );
     } finally {
@@ -679,7 +945,7 @@ export function AdminLessonPage() {
     }
   }
   return (
-    <AsyncView loading={!lesson && !error} error={error}>
+    <AsyncView loading={!lesson && !loadError} error={loadError}>
       <section className="space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -714,11 +980,6 @@ export function AdminLessonPage() {
               <CardTitle>
                 {language === "ar" ? "معاينة الطالب" : "Student preview"}
               </CardTitle>
-              <CardDescription>
-                {language === "ar"
-                  ? "تعرض هذه المعاينة المسودة الحالية المحفوظة."
-                  : "This preview shows the currently saved draft."}
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <h2 className="text-2xl font-bold">{lesson.title[language]}</h2>
@@ -752,29 +1013,28 @@ export function AdminLessonPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form className="space-y-5" onSubmit={saveLesson}>
+              <form className="space-y-5" onSubmit={saveLesson} noValidate>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label={adminCopy[language].slug}>
+                  <Field label={adminCopy[language].slug} error={formErrors.slug}>
                     <Input
                       value={form.slug}
                       dir="ltr"
-                      onChange={(event) =>
-                        setForm({ ...form, slug: event.target.value })
-                      }
+                      onChange={(event) => { setForm({ ...form, slug: event.target.value }); setFormErrors(({ slug, ...rest }) => rest); }}
                       required
                     />
                   </Field>
-                  <Field label={adminCopy[language].order}>
+                  <Field label={adminCopy[language].order} error={formErrors.sortOrder}>
                     <Input
                       type="number"
                       min="0"
                       value={form.sortOrder}
-                      onChange={(event) =>
+                      onChange={(event) => {
                         setForm({
                           ...form,
                           sortOrder: Number(event.target.value),
-                        })
-                      }
+                        });
+                        setFormErrors(({ sortOrder, ...rest }) => rest);
+                      }}
                       required
                     />
                   </Field>
@@ -783,8 +1043,10 @@ export function AdminLessonPage() {
                   label={language === "ar" ? "العنوان" : "Title"}
                   value={form.title}
                   onChange={(title) => setForm({ ...form, title })}
+                  onFieldChange={(key) => setFormErrors(({ [`title.${key}`]: _, ...rest }) => rest)}
+                  errors={{ ar: formErrors["title.ar"], en: formErrors["title.en"] }}
                 />
-                <Field
+                <Field error={formErrors.youtubeVideoId}
                   label={
                     language === "ar"
                       ? "معرّف فيديو YouTube"
@@ -794,12 +1056,13 @@ export function AdminLessonPage() {
                   <Input
                     value={form.youtubeVideoId ?? ""}
                     dir="ltr"
-                    onChange={(event) =>
+                    onChange={(event) => {
                       setForm({
                         ...form,
                         youtubeVideoId: event.target.value.trim() || null,
-                      })
-                    }
+                      });
+                      setFormErrors(({ youtubeVideoId, ...rest }) => rest);
+                    }}
                   />
                 </Field>
                 <div className="max-w-xs">
@@ -828,6 +1091,7 @@ export function AdminLessonPage() {
                     {adminCopy[language].archive}
                   </Button>
                 </div>
+                {actionError && <p className="text-sm text-destructive" role="alert">{actionError}</p>}
               </form>
             </CardContent>
           </Card>
@@ -838,11 +1102,6 @@ export function AdminLessonPage() {
               <h2 className="text-xl font-semibold">
                 {language === "ar" ? "كتل المحتوى" : "Content blocks"}
               </h2>
-              <p className="text-sm text-muted-foreground">
-                {language === "ar"
-                  ? "رتّب الكتل ثم احفظ محتوى كل كتلة."
-                  : "Reorder blocks and save each block's content."}
-              </p>
             </div>
             <Button
               onClick={() => void addBlock()}

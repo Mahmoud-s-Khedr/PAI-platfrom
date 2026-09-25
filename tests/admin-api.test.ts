@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { app } from "../worker/index";
-import { listAdminDashboard } from "../worker/db/admin";
+import { findPublishedStoredAsset, listAdminDashboard } from "../worker/db/admin";
 
 class AdminDb {
   constructor(private readonly role: "admin" | "student") {}
@@ -56,6 +56,27 @@ class PublishingDb {
   }
 }
 
+class CourseDeleteDb {
+  queries: string[] = [];
+  prepare(query: string) {
+    this.queries.push(query);
+    return {
+      bind: () => ({
+        first: async () => {
+          if (query.includes("FROM sessions")) {
+            return { id: 1, email: "admin@example.com", display_name: "Admin", role: "admin" };
+          }
+          if (query.includes("FROM courses c WHERE c.id")) {
+            return { id: 7, slug: "removable", title_ar: "مقرر", title_en: "Course", description_ar: "", description_en: "", status: "draft", sort_order: 1, lesson_count: 0, question_count: 0, created_at: "2026-01-01 00:00:00", updated_at: "2026-01-01 00:00:00" };
+          }
+          return null;
+        },
+        run: async () => ({}),
+      }),
+    };
+  }
+}
+
 describe("admin API protection", () => {
   it("returns 401 without a session", async () => {
     const response = await app.request("http://test/api/admin/courses");
@@ -108,6 +129,16 @@ describe("admin API protection", () => {
     await expect(response.json()).resolves.toEqual({ error: { code: "LESSON_COURSE_CHANGE_REQUIRES_QUESTION_REASSIGNMENT", message: "Unmap lesson questions before moving this lesson to another course" } });
   });
 
+  it("permanently deletes an existing course for an admin", async () => {
+    const db = new CourseDeleteDb();
+    const response = await app.request("http://test/api/admin/courses/7", {
+      method: "DELETE",
+      headers: sessionHeaders,
+    }, { DB: db } as unknown as Cloudflare.Env);
+    expect(response.status).toBe(204);
+    expect(db.queries).toContain("DELETE FROM courses WHERE id = ?");
+  });
+
   it("returns a conflict instead of a database error for an occupied block sort order", async () => {
     const response = await app.request("http://test/api/admin/lessons/4/blocks", {
       method: "POST",
@@ -141,8 +172,51 @@ describe("asset delivery", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("image/png");
     expect(response.headers.get("Content-Disposition")).toBe('inline; filename="safe.png"');
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
     await expect(response.text()).resolves.toBe("safe");
+  });
+
+  it("limits anonymous delivery to assets linked from published content", async () => {
+    const queries: string[] = [];
+    const row = { id: 9, key: "assets/image/00000000-0000-0000-0000-000000000000.png", mime_type: "image/png", metadata_json: '{"kind":"image","fileName":"safe.png","size":4}', created_at: "2026-01-01 00:00:00", linked_block_count: 1 };
+    const db = {
+      prepare: (query: string) => {
+        queries.push(query);
+        return { bind: () => ({ first: async () => row }) };
+      },
+    } as unknown as D1Database;
+    const asset = await findPublishedStoredAsset(db, 9);
+    expect(asset).toMatchObject({ id: 9 });
+    expect(queries[0]).toContain("FROM asset_links al");
+    expect(queries[0]).toContain("l.status = 'published'");
+    expect(queries[0]).toContain("c.status = 'published'");
+  });
+
+  it("does not read R2 for an anonymous request when no published link exists", async () => {
+    let bucketRead = false;
+    const db = {
+      prepare: () => ({ bind: () => ({ first: async () => null }) }),
+    } as unknown as D1Database;
+    const bucket = { get: async () => { bucketRead = true; return null; } } as unknown as R2Bucket;
+    const response = await app.request("http://test/api/assets/9", undefined, { DB: db, ASSET_BUCKET: bucket } as unknown as Cloudflare.Env);
+    expect(response.status).toBe(404);
+    expect(bucketRead).toBe(false);
+  });
+
+  it("allows an authenticated administrator to preview an unlinked asset", async () => {
+    const row = { id: 9, key: "assets/image/00000000-0000-0000-0000-000000000000.png", mime_type: "image/png", metadata_json: '{"kind":"image","fileName":"safe.png","size":4}', created_at: "2026-01-01 00:00:00", linked_block_count: 0 };
+    const db = {
+      prepare: (query: string) => ({ bind: () => ({ first: async () => {
+        if (query.includes("INNER JOIN courses c")) return null;
+        if (query.includes("FROM sessions")) return { id: 1, email: "admin@example.com", display_name: "Admin", role: "admin" };
+        if (query.includes("FROM assets a")) return row;
+        return null;
+      } }) }),
+    } as unknown as D1Database;
+    const bucket = { get: async () => ({ body: new Blob(["safe"]).stream(), httpEtag: '"etag"' }) } as unknown as R2Bucket;
+    const response = await app.request("http://test/api/assets/9", { headers: sessionHeaders }, { DB: db, ASSET_BUCKET: bucket } as unknown as Cloudflare.Env);
+    expect(response.status).toBe(200);
   });
 });
 

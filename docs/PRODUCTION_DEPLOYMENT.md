@@ -54,9 +54,10 @@ Commit the non-secret D1 UUID in `wrangler.jsonc` with the configuration change.
    npx wrangler r2 bucket info pai-platform-assets
    ```
 
-   Keep the bucket private: the Worker validates and serves every object through
-   `/api/assets/:id`. Do not enable an `r2.dev` public URL or attach a public
-   bucket domain for this application.
+   Keep the bucket private: the Worker validates and serves only assets linked
+   from published lessons through `/api/assets/:id`. Administrators can preview
+   draft assets with their authenticated session. Do not enable an `r2.dev`
+   public URL or attach a public bucket domain for this application.
 
 ## Migrate production D1
 

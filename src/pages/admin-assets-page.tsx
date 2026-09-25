@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Field, formatAdminDate } from "./admin-shared";
+import { validateAdminAsset, type FormErrors } from "../lib/admin-validation";
 
 const kinds: AssetKind[] = ["image", "worksheet", "dataset", "resource"];
 const labels = {
@@ -27,7 +28,7 @@ const accepts = {
   image: "image/jpeg,image/png,image/webp,image/gif",
   worksheet: "application/pdf",
   dataset: "text/csv,application/json",
-  resource: "application/pdf,text/plain,text/csv,application/json",
+  resource: ".pdf,.zip,.docx,.xlsx,.csv,.json,.yaml,.yml,.toml,.txt,application/pdf,application/zip,application/x-zip-compressed,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/csv,application/json,application/x-yaml,text/yaml,text/x-yaml,application/toml",
 } as const;
 
 export function AdminAssetsPage() {
@@ -35,7 +36,9 @@ export function AdminAssetsPage() {
   const [assets, setAssets] = useState<AdminAsset[]>([]);
   const [kind, setKind] = useState<AssetKind>("image");
   const [file, setFile] = useState<File | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
@@ -43,7 +46,7 @@ export function AdminAssetsPage() {
       .adminAssets()
       .then(setAssets)
       .catch((reason: unknown) =>
-        setError(
+        setLoadError(
           reason instanceof Error ? reason.message : "Unable to load assets",
         ),
       )
@@ -51,15 +54,18 @@ export function AdminAssetsPage() {
   }, []);
   async function upload(event: FormEvent) {
     event.preventDefault();
+    const validation = validateAdminAsset(kind, file, language);
+    setErrors(validation);
+    if (Object.keys(validation).length) return;
     if (!file) return;
     setSaving(true);
-    setError(null);
+    setActionError(null);
     try {
       const asset = await api.uploadAdminAsset(kind, file);
       setAssets((current) => [asset, ...current]);
       setFile(null);
     } catch (reason) {
-      setError(
+      setActionError(
         reason instanceof Error ? reason.message : "Unable to upload asset",
       );
     } finally {
@@ -76,12 +82,12 @@ export function AdminAssetsPage() {
     )
       return;
     setSaving(true);
-    setError(null);
+    setActionError(null);
     try {
       await api.deleteAdminAsset(asset.id);
       setAssets((current) => current.filter((item) => item.id !== asset.id));
     } catch (reason) {
-      setError(
+      setActionError(
         reason instanceof Error ? reason.message : "Unable to delete asset",
       );
     } finally {
@@ -89,7 +95,7 @@ export function AdminAssetsPage() {
     }
   }
   return (
-    <AsyncView loading={loading} error={error && !assets.length ? error : null}>
+    <AsyncView loading={loading} error={loadError && !assets.length ? loadError : null}>
       <section className="space-y-6">
         <div>
           <Button variant="link" className="px-0" asChild>
@@ -101,11 +107,6 @@ export function AdminAssetsPage() {
           <h1 className="text-3xl font-bold">
             {language === "ar" ? "الوسائط والملفات" : "Assets"}
           </h1>
-          <p className="mt-1 text-muted-foreground">
-            {language === "ar"
-              ? "ارفع الصور والملفات الآمنة، واحذف العناصر غير المستخدمة."
-              : "Upload safe images and files, then remove unused items."}
-          </p>
         </div>
         <Card>
           <CardHeader>
@@ -122,6 +123,7 @@ export function AdminAssetsPage() {
             <form
               className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]"
               onSubmit={upload}
+              noValidate
             >
               <Field label={language === "ar" ? "النوع" : "Type"}>
                 <select
@@ -130,6 +132,7 @@ export function AdminAssetsPage() {
                   onChange={(event) => {
                     setKind(event.target.value as AssetKind);
                     setFile(null);
+                    setErrors({});
                   }}
                 >
                   {kinds.map((item) => (
@@ -139,11 +142,11 @@ export function AdminAssetsPage() {
                   ))}
                 </select>
               </Field>
-              <Field label={language === "ar" ? "الملف" : "File"}>
+              <Field label={language === "ar" ? "الملف" : "File"} error={errors.file}>
                 <Input
                   type="file"
                   accept={accepts[kind]}
-                  onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                  onChange={(event) => { setFile(event.target.files?.[0] ?? null); setErrors({}); setActionError(null); }}
                   required
                 />
               </Field>
@@ -158,9 +161,9 @@ export function AdminAssetsPage() {
                     : "Upload"}
               </Button>
             </form>
-            {error && (
+            {actionError && (
               <p className="mt-3 text-sm text-destructive" role="alert">
-                {error}
+                {actionError}
               </p>
             )}
           </CardContent>

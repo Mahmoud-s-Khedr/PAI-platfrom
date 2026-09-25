@@ -36,8 +36,9 @@ describe("content data access", () => {
     const lesson = toLesson({ id: 1, course_id: 1, slug: "demo", title_ar: "تجريبي", title_en: "Demo", youtube_video_id: null, sort_order: 1 }, [
       { id: 2, type: "code", data_json: '{"code":"print(1)"}' },
       { id: 3, type: "interactive", data_json: '{"component":"binary-converter","props":{}}' },
+      { id: 4, type: "file", data_json: '{"assetId":7,"title":{"ar":"ملف","en":"File"}}' },
     ]);
-    expect(lesson.blocks.map((block) => block.type)).toEqual(["code", "interactive"]);
+    expect(lesson.blocks.map((block) => block.type)).toEqual(["code", "interactive", "file"]);
   });
   it("contains malformed block JSON instead of exposing it as trusted data", () => {
     expect(toBlock({ id: 1, type: "code", data_json: '{"code":false}' }).data).toBeNull();
@@ -75,6 +76,7 @@ describe("content data access", () => {
   });
   it("marks unsupported blocks for graceful fallback", () => {
     expect(isSupportedLessonBlockType("rich-text")).toBe(true);
+    expect(isSupportedLessonBlockType("file")).toBe(true);
     expect(isSupportedLessonBlockType("video-script")).toBe(false);
   });
 });

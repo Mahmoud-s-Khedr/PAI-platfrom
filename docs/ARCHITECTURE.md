@@ -6,8 +6,8 @@ Browser
 React SPA (Vite)
   ↓ same-origin /api/*
 Hono Cloudflare Worker
-  ↓ DB binding
-Cloudflare D1
+  ↓ DB binding             ↓ ASSET_BUCKET binding
+Cloudflare D1              Private Cloudflare R2
 ```
 
 The official `@cloudflare/vite-plugin` runs the Worker in `workerd` during `npm run dev`; it is not a Node-only API replacement. `wrangler.jsonc` routes `/api/*` to the Worker first and uses SPA fallback for browser routes such as `/courses/first-secondary`.
@@ -30,9 +30,13 @@ Rich text is still untrusted D1 content. The renderer skips raw HTML, does not u
 
 Language, completed lesson IDs, and question-attempt counts are local-only. `src/storage/student-state.ts` is the small boundary around localStorage, so a later IndexedDB implementation need not affect pages or question rendering. No accounts or server-side progress exist in this phase.
 
-## Future R2
+## Managed lesson assets
 
-R2 is the intended location for binary lesson assets. D1's `assets.key` will identify an R2 object, and public/delivery URLs can be derived by the future asset-serving layer. Files are not stored in D1 and no R2 bucket is provisioned or used yet.
+R2 holds uploaded image and downloadable-file binaries; D1 holds generated keys
+and validated metadata. The bucket has no public domain. `GET /api/assets/:id`
+serves an asset only when it is linked from a published lesson in a published
+course; authenticated administrators may preview draft or orphaned assets.
+Files are never stored in D1.
 
 ## Source PDFs
 

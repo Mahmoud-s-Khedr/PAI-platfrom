@@ -6,6 +6,8 @@ import { AdminPage } from "../pages/admin-page";
 import { AdminCoursePage } from "../pages/admin-course-page";
 import { AdminLessonPage } from "../pages/admin-lesson-page";
 import { AdminQuestionsPage } from "../pages/admin-questions-page";
+import { AdminQuestionEditorPage } from "../pages/admin-question-editor-page";
+import { AdminQuestionPreviewPage } from "../pages/admin-question-preview-page";
 import { AdminAssetsPage } from "../pages/admin-assets-page";
 import { CoursePage } from "../pages/course-page";
 import { HomePage } from "../pages/home-page";
@@ -31,6 +33,9 @@ export function App() {
                 element={<AdminLessonPage />}
               />
               <Route path="admin/questions" element={<AdminQuestionsPage />} />
+              <Route path="admin/questions/new" element={<AdminQuestionEditorPage />} />
+              <Route path="admin/questions/:questionId/edit" element={<AdminQuestionEditorPage />} />
+              <Route path="admin/questions/:questionId/preview" element={<AdminQuestionPreviewPage />} />
               <Route path="admin/assets" element={<AdminAssetsPage />} />
               <Route path="courses/:courseSlug" element={<CoursePage />} />
               <Route

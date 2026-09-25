@@ -1,6 +1,6 @@
 export type Language = "ar" | "en";
 export type ContentStatus = "draft" | "published" | "archived";
-export type LessonBlockType = "rich-text" | "image" | "code" | "callout" | "interactive";
+export type LessonBlockType = "rich-text" | "image" | "file" | "code" | "callout" | "interactive";
 export type QuestionType = "mcq" | "true_false" | "short_answer";
 export type QuestionDifficulty = "easy" | "medium" | "hard";
 export type AssetKind = "image" | "worksheet" | "dataset" | "resource";

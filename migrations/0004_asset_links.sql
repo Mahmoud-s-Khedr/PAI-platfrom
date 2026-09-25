@@ -1,5 +1,5 @@
 -- Asset binaries remain in R2. This table records the only first-class
--- relationship an uploaded asset currently has: an image block that uses it.
+-- relationship an uploaded asset has with an image or downloadable-file block.
 -- It makes orphan detection and safe deletion deterministic without parsing
 -- arbitrary JSON stored in lesson_blocks.
 CREATE TABLE asset_links (

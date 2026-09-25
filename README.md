@@ -8,7 +8,7 @@ The `subjects-content/` PDFs are internal authoring/reference material only. Thi
 
 - React, TypeScript, Vite, React Router
 - Cloudflare Vite plugin and Workers runtime (also used in local development)
-- Hono API and Cloudflare D1
+- Hono API, Cloudflare D1, and a private R2 bucket for managed lesson assets
 - localStorage behind a small student-state storage abstraction
 - Vitest focused unit tests
 
@@ -48,6 +48,7 @@ npm run cf-types
 - `GET /api/questions?lesson=<id>`
 - `GET /api/questions?lessons=<id>,<id>`
 - `GET /api/questions?course=<course-slug>`
+- `GET /api/assets/:id` for assets linked from published lessons (administrators can also preview draft assets)
 
 These public routes are read-only and expose published content only. Bad input and missing resources use a JSON error object with `error.code` and `error.message`. See [database documentation](docs/DATABASE.md) for course-wide question semantics.
 
@@ -66,11 +67,13 @@ guide](docs/AUTHENTICATION.md) and [admin API guide](docs/ADMIN_API.md).
 1. Log in with `npx wrangler login`.
 2. Create a database with `npm run db:create`.
 3. Copy the returned `database_id` into `wrangler.jsonc` (keep the `DB` binding and `pai-platform` name).
-4. Run `npm run db:migrate:remote`.
-5. Optionally load the clearly marked demo data with `npm run db:seed:remote`.
-6. Run `npm run deploy`.
+4. Create the private asset bucket: `npx wrangler r2 bucket create pai-platform-assets --location=enam`.
+5. Run `npm run db:migrate:remote`.
+6. Optionally load the clearly marked demo data with `npm run db:seed:remote`.
+7. Run `npm run deploy`.
 
-No R2 bucket is required in Phase 1. The `assets` D1 table stores only a future R2 object key and metadata; adding an R2 binding and upload flow is deferred.
+Keep the R2 bucket private. The Worker validates all uploads and only exposes an
+asset publicly when it is linked from a published lesson in a published course.
 
 See [architecture](docs/ARCHITECTURE.md) and [database documentation](docs/DATABASE.md).
 

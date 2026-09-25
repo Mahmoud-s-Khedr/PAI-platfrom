@@ -89,9 +89,9 @@ const assetMimeTypes: Record<AssetKind, readonly string[]> = {
   image: ["image/jpeg", "image/png", "image/webp", "image/gif"],
   worksheet: ["application/pdf"],
   dataset: ["text/csv", "application/json"],
-  resource: ["application/pdf", "text/plain", "text/csv", "application/json"],
+  resource: ["application/pdf", "application/zip", "application/x-zip-compressed", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "text/plain", "text/csv", "application/json", "application/x-yaml", "text/yaml", "text/x-yaml", "application/toml"],
 };
-const assetExtensions: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "application/pdf": "pdf", "text/csv": "csv", "application/json": "json", "text/plain": "txt" };
+const assetExtensions: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "application/pdf": "pdf", "application/zip": "zip", "application/x-zip-compressed": "zip", "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx", "text/csv": "csv", "application/json": "json", "text/plain": "txt", "application/x-yaml": "yaml", "text/yaml": "yaml", "text/x-yaml": "yaml", "application/toml": "toml" };
 
 export interface AssetInput extends AssetMetadata {
   key: string;
@@ -251,6 +251,10 @@ export async function updateAdminCourse(db: D1Database, id: number, input: Cours
     .bind(input.slug, input.title.ar, input.title.en, input.description.ar, input.description.en, input.status, input.sortOrder, id).run();
 }
 
+export async function deleteAdminCourse(db: D1Database, id: number): Promise<void> {
+  await db.prepare("DELETE FROM courses WHERE id = ?").bind(id).run();
+}
+
 export async function findAdminLesson(db: D1Database, id: number): Promise<AdminLesson | null> {
   const lesson = await db.prepare(`SELECT id, course_id, slug, title_ar, title_en, youtube_video_id, sort_order, status, created_at, updated_at
     FROM lessons WHERE id = ?`).bind(id).first<AdminLessonRow>();
@@ -327,14 +331,14 @@ export async function deleteAdminBlock(db: D1Database, id: number): Promise<void
   await db.prepare("DELETE FROM lesson_blocks WHERE id = ?").bind(id).run();
 }
 
-function imageAssetId(input: BlockInput): number | null {
-  if (input.type !== "image" || !input.data || typeof input.data !== "object") return null;
+function linkedAssetId(input: BlockInput): number | null {
+  if ((input.type !== "image" && input.type !== "file") || !input.data || typeof input.data !== "object") return null;
   const value = (input.data as Record<string, unknown>).assetId;
   return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
 }
 
 async function replaceBlockAssetLink(db: D1Database, blockId: number, input: BlockInput): Promise<void> {
-  const assetId = imageAssetId(input);
+  const assetId = linkedAssetId(input);
   const statements = [db.prepare("DELETE FROM asset_links WHERE lesson_block_id = ?").bind(blockId)];
   if (assetId) statements.push(db.prepare("INSERT INTO asset_links (asset_id, lesson_block_id) VALUES (?, ?)").bind(assetId, blockId));
   await db.batch(statements);
@@ -447,6 +451,27 @@ export async function listAdminAssets(db: D1Database): Promise<AdminAsset[]> {
 
 export async function findStoredAsset(db: D1Database, id: number): Promise<StoredAsset | null> {
   const row = await db.prepare(`SELECT ${assetColumns} FROM assets a WHERE a.id = ?`).bind(id).first<AdminAssetRow>();
+  return row ? toAdminAsset(row) : null;
+}
+
+/**
+ * Public delivery is deliberately limited to assets referenced by a published
+ * lesson in a published course. Draft and orphaned uploads remain available
+ * to administrators through the authenticated fallback in the asset route.
+ */
+export async function findPublishedStoredAsset(db: D1Database, id: number): Promise<StoredAsset | null> {
+  const row = await db.prepare(`SELECT ${assetColumns} FROM assets a
+    WHERE a.id = ?
+      AND EXISTS (
+        SELECT 1
+        FROM asset_links al
+        INNER JOIN lesson_blocks lb ON lb.id = al.lesson_block_id
+        INNER JOIN lessons l ON l.id = lb.lesson_id
+        INNER JOIN courses c ON c.id = l.course_id
+        WHERE al.asset_id = a.id
+          AND l.status = 'published'
+          AND c.status = 'published'
+      )`).bind(id).first<AdminAssetRow>();
   return row ? toAdminAsset(row) : null;
 }
 
