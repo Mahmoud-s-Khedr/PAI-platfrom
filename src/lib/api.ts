@@ -42,6 +42,7 @@ export const api = {
   lessons: (courseSlug: string) => get<LessonSummary[]>(`/api/courses/${encodeURIComponent(courseSlug)}/lessons`),
   lesson: (id: number) => get<Lesson>(`/api/lessons/${id}`),
   lessonQuestions: (id: number, options: QuestionQueryOptions = {}) => get<Question[]>(`/api/questions${queryString({ lesson: id, ...options })}`),
+  lessonsQuestions: (ids: number[], options: QuestionQueryOptions = {}) => get<Question[]>(`/api/questions${queryString({ lessons: ids.join(","), ...options })}`),
   courseQuestions: (slug: string, options: QuestionQueryOptions = {}) => get<Question[]>(`/api/questions${queryString({ course: slug, ...options })}`),
   session: () => get<SessionResponse>("/api/auth/session"),
   passwordLogin: (email: string, password: string) => post<{ user: AuthUser }>("/api/auth/password", { email, password }),

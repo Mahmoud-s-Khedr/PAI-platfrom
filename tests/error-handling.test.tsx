@@ -11,6 +11,7 @@ import { LanguageProvider } from "../src/app/language";
 import { useLanguage } from "../src/app/language";
 import { isRenderableQuestion, QuestionPractice } from "../src/question-engine/question-practice";
 import { LessonVideo } from "../src/pages/lesson-page";
+import { youtubeErrorMessage } from "../src/lib/youtube-player";
 import type { Question } from "../src/lib/types";
 import { studentState } from "../src/storage/student-state";
 
@@ -53,6 +54,11 @@ describe("student-facing error states", () => {
     render(<LessonVideo videoId="bad$id" title="Lesson" language="en" />);
     expect(screen.getByText("This lesson video is not available right now")).toBeInTheDocument();
     expect(screen.queryByTitle("Lesson")).not.toBeInTheDocument();
+  });
+
+  it("explains YouTube removal and embedding restrictions in the student language", () => {
+    expect(youtubeErrorMessage(100, "en")).toContain("removed");
+    expect(youtubeErrorMessage(101, "ar")).toContain("لا يسمح");
   });
 
   it("preserves Arabic document direction through the language provider", () => {

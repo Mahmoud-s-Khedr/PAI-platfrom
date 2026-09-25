@@ -3,12 +3,13 @@ import type { LessonBlock as Block } from "../lib/types";
 import { BinaryConverter, PythonPlayground } from "../interactives/registry";
 import { registeredInteractiveComponentIds } from "../interactives/component-ids";
 import { useLanguage } from "../app/language";
-import { Download, FileText } from "lucide-react";
+import { AlertTriangle, BookOpenCheck, Download, FileText, Lightbulb, NotebookPen, type LucideIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MarkdownRenderer } from "./markdown-renderer";
 import { SyntaxHighlightedCode } from "./syntax-highlighted-code";
+import { calloutTones, type CalloutTone, type Language } from "../lib/types";
 
 function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null; }
 function text(data: unknown, language: "ar" | "en") { return isRecord(data) && typeof data[language] === "string" ? data[language] : ""; }
@@ -67,7 +68,33 @@ export function CodeBlock({ data }: { data: unknown }) {
 
 export function CalloutBlock({ data }: { data: unknown }) {
   const { language } = useLanguage();
-  return <Alert className="border-primary/25 bg-primary/5 text-foreground"><AlertDescription>{text(data, language)}</AlertDescription></Alert>;
+  const tone = calloutTone(data);
+  const style = calloutStyles[tone];
+  const Icon = style.icon;
+  return (
+    <Alert role="note" className={style.className} data-callout-tone={tone}>
+      <div className="flex items-start gap-3">
+        <Icon className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="mb-1 font-medium leading-none tracking-tight">{style.label[language]}</p>
+          <AlertDescription>{text(data, language)}</AlertDescription>
+        </div>
+      </div>
+    </Alert>
+  );
+}
+
+const calloutStyles: Record<CalloutTone, { label: Record<Language, string>; icon: LucideIcon; className: string }> = {
+  "key-concept": { label: { ar: "مفهوم أساسي", en: "Key concept" }, icon: BookOpenCheck, className: "border-primary/25 bg-primary/5 text-foreground" },
+  note: { label: { ar: "ملاحظة", en: "Note" }, icon: NotebookPen, className: "border-slate-400/30 bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-50" },
+  tip: { label: { ar: "نصيحة", en: "Tip" }, icon: Lightbulb, className: "border-amber-500/30 bg-amber-50 text-amber-950 dark:bg-amber-950 dark:text-amber-50" },
+  warning: { label: { ar: "تنبيه", en: "Warning" }, icon: AlertTriangle, className: "border-destructive/35 bg-destructive/10 text-foreground" },
+  example: { label: { ar: "مثال", en: "Example" }, icon: FileText, className: "border-emerald-600/30 bg-emerald-50 text-emerald-950 dark:bg-emerald-950 dark:text-emerald-50" },
+};
+
+function calloutTone(data: unknown): CalloutTone {
+  if (!isRecord(data)) return "note";
+  return calloutTones.includes(data.tone as CalloutTone) ? data.tone as CalloutTone : "note";
 }
 
 const interactiveRegistry: Record<(typeof registeredInteractiveComponentIds)[number], ComponentType<{ props: Record<string, unknown> }>> = {

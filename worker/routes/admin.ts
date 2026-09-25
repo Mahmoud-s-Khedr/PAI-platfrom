@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import type { ContentStatus, LessonBlockType, QuestionDifficulty, QuestionType } from "../../src/lib/types";
+import { calloutTones, type ContentStatus, type LessonBlockType, type QuestionDifficulty, type QuestionType } from "../../src/lib/types";
 import {
   archiveAdminLesson,
   archiveAdminQuestion,
@@ -58,7 +58,7 @@ const blockDataSchemas = {
   image: z.object({ src: z.string().trim().min(1).max(2_000), assetId: positiveInteger.optional(), alt: localizedTextSchema.optional(), caption: localizedTextSchema.optional() }).strict(),
   file: z.object({ assetId: positiveInteger, title: localizedTextSchema, description: localizedTextSchema.optional() }).strict(),
   code: z.object({ language: z.string().trim().min(1).max(80).optional(), code: z.string().max(100_000) }).strict(),
-  callout: localizedTextSchema.extend({ tone: z.string().trim().min(1).max(40).optional() }).strict(),
+  callout: localizedTextSchema.extend({ tone: z.enum(calloutTones) }).strict(),
   interactive: z.object({ component: z.string().trim().min(1).max(120), props: z.record(z.string(), z.unknown()).optional() }).strict(),
 } satisfies Record<LessonBlockType, z.ZodType>;
 

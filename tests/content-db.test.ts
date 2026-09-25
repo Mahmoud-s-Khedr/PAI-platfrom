@@ -57,6 +57,10 @@ describe("content data access", () => {
     expect(toBlock({ id: 2, type: "code", data_json: "not-json" }).data).toBeNull();
     expect(toBlock({ id: 2, type: "future-block", data_json: "{}" })).toMatchObject({ type: "future-block", data: null });
   });
+  it("normalizes the legacy development callout tone while rejecting unknown tones", () => {
+    expect(toBlock({ id: 1, type: "callout", data_json: '{"ar":"مفهوم","en":"Concept","tone":"info"}' }).data).toMatchObject({ tone: "key-concept" });
+    expect(toBlock({ id: 2, type: "callout", data_json: '{"ar":"مفهوم","en":"Concept","tone":"unknown"}' }).data).toBeNull();
+  });
   it("requires a published parent course when loading a published lesson directly", async () => {
     const db = new CapturingDb([{ id: 1, course_id: 1, slug: "demo", title_ar: "تجريبي", title_en: "Demo", youtube_video_id: null, sort_order: 1 }]);
     await findPublishedLesson(db as unknown as D1Database, 1);

@@ -20,7 +20,8 @@ describe("admin form validators", () => {
     expect(validateAdminBlock({ type: "file", data: { assetId: 3, title: { ar: "ملف", en: "File" } }, sortOrder: 0 }, "en")).toEqual({});
     expect(validateAdminBlock({ type: "file", data: { assetId: 0, title: { ar: "", en: "" } }, sortOrder: 0 }, "en")).toMatchObject({ "data.assetId": expect.any(String), "data.title.ar": expect.any(String) });
     expect(validateAdminBlock({ type: "code", data: { code: "x".repeat(100_001), language: "x".repeat(81) }, sortOrder: 0 }, "en")).toMatchObject({ "data.code": expect.any(String), "data.language": expect.any(String) });
-    expect(validateAdminBlock({ type: "callout", data: { ar: "", en: "", tone: "x".repeat(41) }, sortOrder: 0 }, "en")).toMatchObject({ "data.ar": expect.any(String), "data.tone": expect.any(String) });
+    expect(validateAdminBlock({ type: "callout", data: { ar: "", en: "", tone: "not-a-tone" }, sortOrder: 0 }, "en")).toMatchObject({ "data.ar": expect.any(String), "data.tone": expect.any(String) });
+    expect(validateAdminBlock({ type: "callout", data: { ar: "ملاحظة", en: "Note", tone: "tip" }, sortOrder: 0 }, "en")).toEqual({});
     expect(validateAdminBlock({ type: "interactive", data: { component: "unknown", props: [] }, sortOrder: 0 }, "en")).toMatchObject({ "data.component": expect.any(String), "data.props": expect.any(String) });
   });
 

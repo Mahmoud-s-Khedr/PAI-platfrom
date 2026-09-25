@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "../app/language";
 import { api } from "../lib/api";
+import { calloutTones, type CalloutTone } from "../lib/types";
 import type {
   AdminAsset,
   AdminBlockInput,
@@ -65,6 +66,13 @@ const blockTypes: LessonBlockType[] = [
   "callout",
   "interactive",
 ];
+const calloutToneLabels: Record<CalloutTone, LocalizedText> = {
+  "key-concept": { ar: "مفهوم أساسي", en: "Key concept" },
+  note: { ar: "ملاحظة", en: "Note" },
+  tip: { ar: "نصيحة", en: "Tip" },
+  warning: { ar: "تنبيه", en: "Warning" },
+  example: { ar: "مثال", en: "Example" },
+};
 
 function lessonForm(lesson: AdminLesson): AdminLessonInput {
   return {
@@ -426,6 +434,9 @@ function BlockEditor({
     )
       ? (objectData.component as (typeof registeredInteractiveComponentIds)[number])
       : "";
+  const selectedCalloutTone = calloutTones.includes(objectData.tone as CalloutTone)
+    ? objectData.tone as CalloutTone
+    : "note";
   const setText = (next: LocalizedText) =>
     setData(type === "callout" ? { ...objectData, ...next } : next);
   const setObject = (next: Record<string, unknown>) => setData(next);
@@ -438,7 +449,7 @@ function BlockEditor({
     event.preventDefault();
     setSaveError(null);
     setSaveNotice(null);
-    let submittedData = data;
+    let submittedData = type === "callout" ? { ...objectData, tone: selectedCalloutTone } : data;
     if (type === "interactive") {
       try {
         const props = JSON.parse(propsJson);
@@ -683,15 +694,19 @@ function BlockEditor({
                 errors={{ ar: errors["data.ar"], en: errors["data.en"] }}
               />
               <Field label={language === "ar" ? "النمط" : "Tone"} error={errors["data.tone"]}>
-                <Input
-                  value={
-                    typeof objectData.tone === "string" ? objectData.tone : ""
-                  }
-                  onChange={(event) =>
-                    { setObject({ ...objectData, tone: event.target.value }); setErrors(({ "data.tone": _tone, ...rest }) => rest); }
-                  }
-                  required
-                />
+                <select
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={selectedCalloutTone}
+                  onChange={(event) => {
+                    setObject({ ...objectData, tone: event.target.value });
+                    setErrors(({ "data.tone": _tone, ...rest }) => rest);
+                  }}
+                  aria-label={language === "ar" ? "نوع التنبيه" : "Callout type"}
+                >
+                  {calloutTones.map((tone) => (
+                    <option key={tone} value={tone}>{calloutToneLabels[tone][language]}</option>
+                  ))}
+                </select>
               </Field>
             </div>
           )}

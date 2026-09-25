@@ -1,5 +1,5 @@
 import { registeredInteractiveComponentIds } from "../interactives/component-ids";
-import type { AdminBlockInput, AdminLessonInput, AdminQuestionInput, AssetKind, Language, LocalizedText } from "./types";
+import { calloutTones, type AdminBlockInput, type AdminLessonInput, type AdminQuestionInput, type AssetKind, type Language, type LocalizedText } from "./types";
 
 export type FormErrors = Record<string, string>;
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -15,7 +15,7 @@ function copy(language: Language) {
     explanationAr: "أدخل الشرح بالعربية.", explanationEn: "أدخل الشرح بالإنجليزية.",
     youtube: "يجب ألا يزيد معرّف YouTube عن 100 حرف.", url: "أدخل رابط صورة لا يزيد عن 2,000 حرف.",
     imageAsset: "اختر صورة مرفوعة أو أدخل رابطًا خارجيًا.", fileAsset: "اختر ملفًا مرفوعًا.", code: "أدخل الرمز البرمجي (100,000 حرف كحد أقصى).", codeLanguage: "يجب ألا تزيد اللغة عن 80 حرفًا.",
-    tone: "يجب ألا يزيد النمط عن 40 حرفًا.", component: "اختر اسم مكوّن تفاعلي مسجّل.", props: "يجب أن تكون الخصائص JSON صالحًا على هيئة كائن.",
+    tone: "اختر نوعًا مدعومًا للتنبيه.", component: "اختر اسم مكوّن تفاعلي مسجّل.", props: "يجب أن تكون الخصائص JSON صالحًا على هيئة كائن.",
     answerJson: "أدخل إجابة صحيحة.", mcq: "أدخل خيارات عربية وإنجليزية متطابقة وغير فارغة، وحدد إجابة صحيحة.",
     boolean: "يجب أن تحتوي إجابة صح أو خطأ على قيمة correct منطقية.", shortAnswer: "أدخل إجابة قصيرة واحدة صالحة على الأقل.", lessons: "يمكن ربط السؤال بما لا يزيد على 100 درس.",
     file: "اختر ملفًا للرفع.", mime: "نوع الملف غير مسموح به لهذا النوع.", emptyFile: "لا يمكن رفع ملف فارغ.", size: "حجم الملف يتجاوز الحد المسموح.",
@@ -29,7 +29,7 @@ function copy(language: Language) {
     explanationAr: "Enter the Arabic explanation.", explanationEn: "Enter the English explanation.",
     youtube: "The YouTube ID must be 100 characters or fewer.", url: "Enter an image URL of 2,000 characters or fewer.",
     imageAsset: "Select an uploaded image or enter an external URL.", fileAsset: "Select an uploaded file.", code: "Enter code (100,000 characters or fewer).", codeLanguage: "The language must be 80 characters or fewer.",
-    tone: "The tone must be 40 characters or fewer.", component: "Choose a registered interactive component.", props: "Props must be valid JSON represented by an object.",
+    tone: "Choose a supported callout type.", component: "Choose a registered interactive component.", props: "Props must be valid JSON represented by an object.",
     answerJson: "Enter a valid answer.", mcq: "Enter matching, non-empty Arabic and English choices and select the correct answer.",
     boolean: "A true/false answer must contain a boolean correct value.", shortAnswer: "Enter at least one valid short answer.", lessons: "A question can be mapped to at most 100 lessons.",
     file: "Choose a file to upload.", mime: "This file type is not allowed for the selected asset type.", emptyFile: "An empty file cannot be uploaded.", size: "The file exceeds the allowed size.",
@@ -97,7 +97,7 @@ export function validateAdminBlock(input: AdminBlockInput, language: Language): 
     }
   }
   if (input.type === "code") { const value = typeof data.code === "string" ? data.code : ""; if (value.length > 100_000) errors["data.code"] = c.code; if (typeof data.language === "string" && data.language.trim().length > 80) errors["data.language"] = c.codeLanguage; }
-  if (input.type === "callout" && typeof data.tone === "string" && data.tone.trim().length > 40) errors["data.tone"] = c.tone;
+  if (input.type === "callout" && (!calloutTones.includes(data.tone as typeof calloutTones[number]))) errors["data.tone"] = c.tone;
   if (input.type === "interactive") { if (typeof data.component !== "string" || !registeredInteractiveComponentIds.includes(data.component.trim() as typeof registeredInteractiveComponentIds[number])) errors["data.component"] = c.component; if (data.props !== undefined && (!data.props || typeof data.props !== "object" || Array.isArray(data.props))) errors["data.props"] = c.props; }
   return errors;
 }

@@ -1,4 +1,4 @@
-import type { Course, Lesson, LessonBlock, LessonSummary, LocalizedText, Question, QuestionDifficulty, QuestionQueryOptions, QuestionType } from "../../src/lib/types";
+import { calloutTones, type Course, type Lesson, type LessonBlock, type LessonSummary, type LocalizedText, type Question, type QuestionDifficulty, type QuestionQueryOptions, type QuestionType } from "../../src/lib/types";
 import { z } from "zod";
 import { parseJson } from "../lib/json";
 
@@ -54,7 +54,13 @@ const blockDataSchemas = {
     description: localizedTextSchema.optional(),
   }),
   code: z.object({ language: z.string().optional(), code: z.string() }),
-  callout: localizedTextSchema.extend({ tone: z.string().optional() }),
+  // `info` was used by the original development fixture. Normalize it on read
+  // so old local D1 state remains usable while new admin writes use the five
+  // supported tones below.
+  callout: localizedTextSchema.extend({
+    tone: z.union([z.enum(calloutTones), z.literal("info")]).optional()
+      .transform((tone) => tone === "info" ? "key-concept" : tone),
+  }),
   interactive: z.object({ component: z.string(), props: z.record(z.string(), z.unknown()).optional() }),
 } satisfies Record<z.infer<typeof lessonBlockTypeSchema>, z.ZodType>;
 

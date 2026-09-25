@@ -376,11 +376,11 @@ Continue to next lesson
 
 ### Callouts
 
-- [ ] Support key concept.
-- [ ] Support note.
-- [ ] Support tip.
-- [ ] Support warning.
-- [ ] Support example.
+- [x] Support key concept.
+- [x] Support note.
+- [x] Support tip.
+- [x] Support warning.
+- [x] Support example.
 
 ---
 
@@ -443,8 +443,8 @@ For every authored lesson:
 - [x] Render responsive player.
 - [x] Use privacy-enhanced embedding where appropriate.
 - [x] Allow lessons to exist before the video is ready.
-- [ ] Gracefully handle unavailable/removed videos.
-- [ ] Review YouTube audience/child-directed requirements before public launch.
+- [x] Gracefully handle unavailable/removed videos.
+- [x] Review YouTube audience/child-directed requirements before public launch (see `YOUTUBE_COMPLIANCE.md`; re-confirm the audience decision at launch).
 - [ ] Add captions/subtitles where practical.
 
 ---
@@ -473,20 +473,20 @@ Possible later types:
 - [x] Show correct/incorrect result.
 - [x] Show explanation.
 - [x] Move to next question.
-- [ ] Support previous question if appropriate.
-- [ ] Calculate session score.
-- [ ] Retry incorrect questions.
-- [ ] Randomize question order.
-- [ ] Randomize MCQ choices safely.
-- [ ] Practice fixed number of questions.
-- [ ] Practice all matching questions.
+- [x] Support previous question if appropriate.
+- [x] Calculate session score.
+- [x] Retry incorrect questions.
+- [x] Randomize question order.
+- [x] Randomize MCQ choices safely.
+- [x] Practice fixed number of questions.
+- [x] Practice all matching questions.
 
 ### Scope Selection
 
 - [x] Practice one lesson.
-- [ ] Practice multiple lessons.
-- [ ] Practice entire course.
-- [ ] Filter by difficulty.
+- [x] Practice multiple lessons.
+- [x] Practice entire course.
+- [x] Filter by difficulty.
 - [x] Show available question count.
 
 Example UX:

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardCheck } from "lucide-react";
 import { useLanguage } from "../app/language";
@@ -10,15 +10,39 @@ import { ApiRequestError, isErrorCode } from "../lib/errors";
 import type { Course, Lesson, LessonSummary, Question } from "../lib/types";
 import { QuestionPractice } from "../question-engine/question-practice";
 import { studentState } from "../storage/student-state";
+import { loadYouTubePlayerApi, youtubeErrorMessage, type YouTubePlayerErrorCode } from "../lib/youtube-player";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 export function LessonVideo({ videoId, title, language }: { videoId: string | null; title: string; language: "ar" | "en" }) {
   const validVideoId = typeof videoId === "string" && /^[A-Za-z0-9_-]{11}$/.test(videoId);
-  const [unavailable, setUnavailable] = useState(!validVideoId);
-  if (unavailable) return <Card className="border-dashed"><CardContent className="space-y-2 py-6 text-center"><p className="font-medium">{language === "ar" ? "فيديو الدرس غير متاح حاليًا" : "This lesson video is not available right now"}</p><p className="text-sm text-muted-foreground">{language === "ar" ? "يمكنك متابعة المادة والأنشطة التعليمية أدناه." : "You can continue with the study material and activities below."}</p></CardContent></Card>;
-  return <Card className="overflow-hidden"><CardContent className="p-0"><div className="aspect-video bg-muted"><iframe className="size-full" title={title} src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId!)}`} referrerPolicy="strict-origin-when-cross-origin" allowFullScreen onError={() => setUnavailable(true)} /></div></CardContent></Card>;
+  const target = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<YouTubePlayerErrorCode | "load" | null>(validVideoId ? null : "load");
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (!validVideoId || !target.current) return;
+    let disposed = false;
+    let player: { destroy: () => void } | undefined;
+    setError(null); setReady(false);
+    void loadYouTubePlayerApi().then((YT) => {
+      if (disposed || !target.current) return;
+      player = new YT.Player(target.current, {
+        videoId,
+        host: "https://www.youtube-nocookie.com",
+        width: "100%",
+        height: "100%",
+        playerVars: { origin: window.location.origin, rel: 0 },
+        events: {
+          onReady: () => { if (!disposed) setReady(true); },
+          onError: (event) => { if (!disposed) setError(event.data); },
+        },
+      });
+    }).catch(() => { if (!disposed) setError("load"); });
+    return () => { disposed = true; player?.destroy(); };
+  }, [videoId, validVideoId]);
+  if (error !== null) return <Card className="border-dashed"><CardContent className="space-y-2 py-6 text-center"><p className="font-medium">{language === "ar" ? "فيديو الدرس غير متاح حاليًا" : "This lesson video is not available right now"}</p><p className="text-sm text-muted-foreground">{error === "load" ? (language === "ar" ? "تعذّر تحميل مشغّل الفيديو. يمكنك متابعة المادة والأنشطة التعليمية أدناه." : "The video player could not be loaded. You can continue with the study material and activities below.") : youtubeErrorMessage(error, language)}</p></CardContent></Card>;
+  return <Card className="overflow-hidden"><CardContent className="p-0"><div className="relative aspect-video bg-muted" aria-label={title}>{!ready && <p className="absolute inset-0 grid place-items-center text-sm text-muted-foreground">{language === "ar" ? "جارٍ تحميل الفيديو…" : "Loading video…"}</p>}<div ref={target} className="size-full" /></div></CardContent></Card>;
 }
 
 export function LessonPage() {

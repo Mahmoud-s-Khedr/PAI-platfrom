@@ -18,7 +18,7 @@ VALUES
   (3, 1, 'code', 3, '{"language":"python","code":"student_name = \\"Mariam\\"\nprint(student_name)"}'),
   (4, 1, 'code', 4, '{"language":"python","code":"books = 3\nbooks = books + 2\nprint(books)"}'),
   (5, 1, 'image', 5, '{"src":"/diagrams/python-sequence.svg","alt":{"ar":"رسم أصلي يوضح ثلاث مراحل مرقمة: حفظ قيمة ثم إجراء حساب ثم عرض الناتج.","en":"Original diagram showing three numbered stages: store a value, calculate, then show the output."},"caption":{"ar":"تسلسل بسيط لتنفيذ برنامج قصير.","en":"A simple sequence for running a short program."}}'),
-  (6, 1, 'callout', 6, '{"tone":"info","ar":"ملخص المسودة: اكتب تعليمات واضحة بالترتيب، اختر اسماً ذا معنى للمتغير، وراجع الناتج بعد كل تغيير.","en":"Draft recap: write clear instructions in order, choose a meaningful variable name, and check the output after each change."}');
+  (6, 1, 'callout', 6, '{"tone":"key-concept","ar":"ملخص المسودة: اكتب تعليمات واضحة بالترتيب، اختر اسماً ذا معنى للمتغير، وراجع الناتج بعد كل تغيير.","en":"Draft recap: write clear instructions in order, choose a meaningful variable name, and check the output after each change."}');
 
 INSERT OR IGNORE INTO questions (id, course_id, type, prompt_json, answer_json, explanation_json, difficulty, status)
 VALUES

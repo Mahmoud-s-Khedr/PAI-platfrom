@@ -1,6 +1,9 @@
 export type Language = "ar" | "en";
 export type ContentStatus = "draft" | "published" | "archived";
 export type LessonBlockType = "rich-text" | "image" | "file" | "code" | "callout" | "interactive";
+/** The intentionally small set of student-facing lesson callout styles. */
+export const calloutTones = ["key-concept", "note", "tip", "warning", "example"] as const;
+export type CalloutTone = (typeof calloutTones)[number];
 export type QuestionType = "mcq" | "true_false" | "short_answer";
 export type QuestionDifficulty = "easy" | "medium" | "hard";
 export type AssetKind = "image" | "worksheet" | "dataset" | "resource";
