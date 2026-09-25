@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isSupportedLessonBlockType } from "../src/lesson-blocks/lesson-block";
-import { findPublishedLesson, listPublishedLessons, listQuestionsForCourse, listQuestionsForLessons, toBlock, toLesson, toQuestion } from "../worker/db/content";
+import { findPublishedLesson, listPublishedCourses, listPublishedLessons, listQuestionsForCourse, listQuestionsForLessons, toBlock, toLesson, toQuestion } from "../worker/db/content";
 import { content } from "../worker/routes/content";
 
 class CapturingDb {
@@ -11,11 +11,13 @@ class CapturingDb {
   prepare(query: string) {
     this.query = query;
     this.queries.push(query);
+    const result = { results: this.rows };
     return {
+      all: async () => result,
       bind: (...values: unknown[]) => {
         this.values = values;
         return {
-          all: async () => ({ results: this.rows }),
+          all: async () => result,
           first: async () => this.rows[0] ?? null,
         };
       },
@@ -24,6 +26,15 @@ class CapturingDb {
 }
 
 describe("content data access", () => {
+  it("requests published courses in their configured order", async () => {
+    const db = new CapturingDb([
+      { id: 2, slug: "second", title_ar: "٢", title_en: "Second", description_ar: "", description_en: "", sort_order: 1 },
+      { id: 1, slug: "first", title_ar: "١", title_en: "First", description_ar: "", description_en: "", sort_order: 2 },
+    ]);
+    const courses = await listPublishedCourses(db as unknown as D1Database);
+    expect(db.query).toContain("WHERE status = 'published' ORDER BY sort_order, id");
+    expect(courses.map((course) => course.slug)).toEqual(["second", "first"]);
+  });
   it("requests course lessons in sort order and preserves that order", async () => {
     const db = new CapturingDb([
       { id: 2, course_id: 1, slug: "second", title_ar: "٢", title_en: "Second", youtube_video_id: null, sort_order: 1 },
@@ -112,5 +123,13 @@ describe("public question query validation", () => {
     await expect(content.request("http://test/questions?lesson=1&difficulty=beginner")).resolves.toMatchObject({ status: 400 });
     await expect(content.request("http://test/questions?lesson=1&limit=101")).resolves.toMatchObject({ status: 400 });
     await expect(content.request("http://test/questions?lesson=1&random=true")).resolves.toMatchObject({ status: 400 });
+  });
+  it("returns standardized JSON errors for invalid IDs and scopes", async () => {
+    const invalidId = await content.request("http://test/lessons/zero");
+    expect(invalidId.status).toBe(400);
+    await expect(invalidId.json()).resolves.toEqual({ error: { code: "INVALID_LESSON_ID", message: "Lesson id must be a positive integer" } });
+    const invalidScope = await content.request("http://test/questions?lesson=1&course=first-secondary");
+    expect(invalidScope.status).toBe(400);
+    await expect(invalidScope.json()).resolves.toEqual({ error: { code: "INVALID_QUESTION_SCOPE", message: "Provide exactly one of lesson, lessons, or course" } });
   });
 });

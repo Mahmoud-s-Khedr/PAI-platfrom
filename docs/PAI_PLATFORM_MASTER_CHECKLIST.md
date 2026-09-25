@@ -843,14 +843,14 @@ Not required for the first internal release, but valuable later.
 - [x] MCQ grading.
 - [x] True/false grading.
 - [x] Short-answer grading.
-- [ ] Lesson block validation.
-- [ ] Interactive registry.
+- [x] Lesson block validation.
+- [x] Interactive registry.
 - [ ] Localization helpers.
 - [ ] Local progress/storage functions.
 
 ### Database / API Tests
 
-- [ ] Course ordering.
+- [x] Course ordering.
 - [x] Lesson ordering.
 - [ ] Published-content filtering.
 - [ ] One-lesson question scope.
@@ -858,9 +858,9 @@ Not required for the first internal release, but valuable later.
 - [x] Multi-lesson deduplication.
 - [x] Course-wide questions.
 - [x] Standardized question-difficulty validation.
-- [ ] Invalid IDs/slugs.
-- [ ] Invalid query parameters.
-- [ ] Invalid stored JSON handling.
+- [x] Invalid IDs/slugs.
+- [x] Invalid query parameters.
+- [x] Invalid stored JSON handling.
 
 ### UI Tests
 
@@ -871,10 +871,10 @@ Not required for the first internal release, but valuable later.
 - [ ] Lesson page.
 - [ ] Question session.
 - [ ] Mobile viewport.
-- [ ] Unknown lesson block.
+- [x] Unknown lesson block.
 - [ ] Unknown interactive.
 - [ ] Missing YouTube video.
-- [ ] Network/API error state.
+- [x] Network/API error state.
 
 Later:
 
@@ -901,17 +901,17 @@ Later:
 
 ## 24. Error Handling
 
-- [ ] Course-not-found page.
-- [ ] Lesson-not-found page.
+- [x] Course-not-found page.
+- [x] Lesson-not-found page.
 - [x] API failure state.
-- [ ] Offline/network failure state.
+- [x] Offline/network failure state.
 - [x] Missing image state.
-- [ ] Missing video state.
+- [x] Missing video state.
 - [x] Invalid lesson block state.
-- [ ] Invalid question state.
+- [x] Invalid question state.
 - [x] Failed interactive state.
-- [ ] Retry actions where appropriate.
-- [ ] Keep errors understandable in Arabic and English.
+- [x] Retry actions where appropriate.
+- [x] Keep errors understandable in Arabic and English.
 
 ---
 
@@ -919,14 +919,14 @@ Later:
 
 Start simple:
 
-- [ ] Worker request/error logs.
-- [ ] Deployment visibility.
+- [x] Worker request/error logs.
+- [x] Deployment visibility.
 - [x] Database migration procedure.
-- [ ] Database export/backup procedure.
-- [ ] Rollback procedure.
-- [ ] Content correction procedure.
-- [ ] Basic uptime/error monitoring.
-- [ ] Separate development and production configuration.
+- [x] Database export/backup procedure.
+- [x] Rollback procedure.
+- [x] Content correction procedure.
+- [x] Basic uptime/error monitoring.
+- [x] Separate development and production configuration.
 
 Later:
 

@@ -10,6 +10,22 @@ import { errorResponse } from "./lib/http";
 type Bindings = AuthBindings;
 export const app = new Hono<{ Bindings: Bindings }>();
 
+// Keep request logs useful for operations without recording cookies, query strings, or student input.
+app.use("/api/*", async (c, next) => {
+  const startedAt = Date.now();
+  try {
+    await next();
+  } finally {
+    console.log(JSON.stringify({
+      event: "api_request",
+      method: c.req.method,
+      path: new URL(c.req.url).pathname,
+      status: c.res.status,
+      durationMs: Date.now() - startedAt,
+    }));
+  }
+});
+
 app.onError((error, c) => {
   console.error(JSON.stringify({ event: "api_error", message: error.message }));
   return errorResponse(c, 500, "INTERNAL_ERROR", "An unexpected error occurred");

@@ -3,8 +3,10 @@ import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardCheck } from "lucide-react";
 import { useLanguage } from "../app/language";
 import { AsyncView } from "../components/async-view";
+import { NotFoundView } from "../components/not-found-view";
 import { LessonBlock } from "../lesson-blocks/lesson-block";
 import { api } from "../lib/api";
+import { ApiRequestError, isErrorCode } from "../lib/errors";
 import type { Course, Lesson, LessonSummary, Question } from "../lib/types";
 import { QuestionPractice } from "../question-engine/question-practice";
 import { studentState } from "../storage/student-state";
@@ -12,8 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
-function LessonVideo({ videoId, title, language }: { videoId: string | null; title: string; language: "ar" | "en" }) {
-  const [unavailable, setUnavailable] = useState(!videoId);
+export function LessonVideo({ videoId, title, language }: { videoId: string | null; title: string; language: "ar" | "en" }) {
+  const validVideoId = typeof videoId === "string" && /^[A-Za-z0-9_-]{11}$/.test(videoId);
+  const [unavailable, setUnavailable] = useState(!validVideoId);
   if (unavailable) return <Card className="border-dashed"><CardContent className="space-y-2 py-6 text-center"><p className="font-medium">{language === "ar" ? "فيديو الدرس غير متاح حاليًا" : "This lesson video is not available right now"}</p><p className="text-sm text-muted-foreground">{language === "ar" ? "يمكنك متابعة المادة والأنشطة التعليمية أدناه." : "You can continue with the study material and activities below."}</p></CardContent></Card>;
   return <Card className="overflow-hidden"><CardContent className="p-0"><div className="aspect-video bg-muted"><iframe className="size-full" title={title} src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId!)}`} referrerPolicy="strict-origin-when-cross-origin" allowFullScreen onError={() => setUnavailable(true)} /></div></CardContent></Card>;
 }
@@ -25,28 +28,29 @@ export function LessonPage() {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [lessons, setLessons] = useState<LessonSummary[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   useEffect(() => {
     let current = true;
     setCourse(null); setLesson(null); setLessons([]); setQuestions([]); setError(null);
     void api.course(courseSlug).then(async (loadedCourse) => {
       const lessons = await api.lessons(courseSlug);
       const summary = lessons.find((candidate: LessonSummary) => candidate.slug === lessonSlug);
-      if (!summary) throw new Error("Lesson not found");
+      if (!summary) throw new ApiRequestError("LESSON_NOT_FOUND", 404);
       const loadedLesson = await api.lesson(summary.id);
       const loadedQuestions = await api.lessonQuestions(summary.id);
       if (!current) return;
       studentState.openLesson({ courseSlug, lessonSlug, lessonId: loadedLesson.id });
       setCourse(loadedCourse); setLessons(lessons); setLesson(loadedLesson); setQuestions(loadedQuestions);
-    }).catch((reason: unknown) => {
-      if (current) setError(reason instanceof Error ? reason.message : "Unable to load lesson");
-    });
+    }).catch((reason: unknown) => { if (current) setError(reason); });
     return () => { current = false; };
-  }, [courseSlug, lessonSlug]);
+  }, [courseSlug, lessonSlug, loadAttempt]);
   const lessonIndex = lessons.findIndex((candidate) => candidate.id === lesson?.id);
   const previousLesson = lessonIndex > 0 ? lessons[lessonIndex - 1] : null;
   const nextLesson = lessonIndex >= 0 && lessonIndex < lessons.length - 1 ? lessons[lessonIndex + 1] : null;
-  return <AsyncView loading={!error && !lesson} error={error}>{lesson && <section className="mx-auto max-w-4xl space-y-7"><Button asChild variant="ghost" className="w-fit px-0 text-muted-foreground hover:bg-transparent hover:text-primary"><Link to={`/courses/${courseSlug}`}><ArrowLeft className="size-4 rtl:rotate-180" />{course?.title[language] ?? (language === "ar" ? "المقرر" : "Course")}</Link></Button><div><h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{lesson.title[language]}</h1></div>
+  if (isErrorCode(error, "COURSE_NOT_FOUND")) return <NotFoundView kind="course" language={language} />;
+  if (isErrorCode(error, "LESSON_NOT_FOUND")) return <NotFoundView kind="lesson" language={language} courseSlug={courseSlug} />;
+  return <AsyncView loading={!error && !lesson} error={error} language={language} onRetry={() => setLoadAttempt((attempt) => attempt + 1)}>{lesson && <section className="mx-auto max-w-4xl space-y-7"><Button asChild variant="ghost" className="w-fit px-0 text-muted-foreground hover:bg-transparent hover:text-primary"><Link to={`/courses/${courseSlug}`}><ArrowLeft className="size-4 rtl:rotate-180" />{course?.title[language] ?? (language === "ar" ? "المقرر" : "Course")}</Link></Button><div><h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{lesson.title[language]}</h1></div>
     <LessonVideo key={lesson.id} videoId={lesson.youtubeVideoId} title={lesson.title[language]} language={language} />
     <article className="space-y-6">{lesson.blocks.map((block) => <LessonBlock key={block.id} block={block} />)}</article>
     <Card className="border-primary/20 bg-primary/5"><CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex gap-3"><CheckCircle2 className="mt-0.5 size-5 shrink-0 text-primary" /><div><p className="font-medium">{language === "ar" ? "أنهيت محتوى الدرس؟" : "Finished the lesson content?"}</p><p className="text-sm text-muted-foreground">{language === "ar" ? "سجّل تقدّمك ثم جرّب أسئلة التدريب." : "Save your progress, then try the practice questions."}</p></div></div><Button onClick={() => studentState.completeLesson(lesson.id)}>{language === "ar" ? "وضع علامة كمكتمل" : "Mark lesson complete"}</Button></CardContent></Card>

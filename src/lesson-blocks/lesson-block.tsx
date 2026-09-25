@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import { useState, type ComponentType } from "react";
 import type { LessonBlock as Block } from "../lib/types";
 import { BinaryConverter, PythonPlayground } from "../interactives/registry";
 import { registeredInteractiveComponentIds } from "../interactives/component-ids";
@@ -20,8 +20,10 @@ export function RichTextBlock({ data }: { data: unknown }) {
 
 export function ImageBlock({ data }: { data: unknown }) {
   const { language } = useLanguage();
-  if (!isRecord(data) || typeof data.src !== "string") return <BlockIssue message="Image block has no image source." />;
-  return <figure className="overflow-hidden rounded-xl border bg-card"><img className="w-full" src={data.src} alt={text(data.alt, language)} /><figcaption className="px-4 py-3 text-sm text-muted-foreground">{text(data.caption, language)}</figcaption></figure>;
+  const [unavailable, setUnavailable] = useState(false);
+  if (!isRecord(data) || typeof data.src !== "string" || !data.src.trim()) return <BlockIssue message={language === "ar" ? "لا يحتوي هذا الجزء على صورة صالحة." : "This section does not contain a valid image."} />;
+  if (unavailable) return <BlockIssue message={language === "ar" ? "تعذّر تحميل صورة هذا الدرس. يمكنك متابعة بقية الدرس." : "This lesson image could not be loaded. You can continue with the rest of the lesson."} />;
+  return <figure className="overflow-hidden rounded-xl border bg-card"><img className="w-full" src={data.src} alt={text(data.alt, language)} onError={() => setUnavailable(true)} /><figcaption className="px-4 py-3 text-sm text-muted-foreground">{text(data.caption, language)}</figcaption></figure>;
 }
 
 export function FileBlock({ data }: { data: unknown }) {
@@ -59,7 +61,7 @@ export function FileBlock({ data }: { data: unknown }) {
 
 export function CodeBlock({ data }: { data: unknown }) {
   const { language } = useLanguage();
-  if (!isRecord(data) || typeof data.code !== "string") return <BlockIssue message="Code block is malformed." />;
+  if (!isRecord(data) || typeof data.code !== "string") return <BlockIssue message={language === "ar" ? "جزء الكود غير صالح." : "Code block is malformed."} />;
   return <SyntaxHighlightedCode code={data.code} language={typeof data.language === "string" ? data.language : undefined} interfaceLanguage={language} />;
 }
 
@@ -78,16 +80,18 @@ export function isSupportedLessonBlockType(type: string): boolean {
 }
 
 export function InteractiveBlock({ data }: { data: unknown }) {
-  if (!isRecord(data) || typeof data.component !== "string") return <BlockIssue message="Interactive block is malformed." />;
+  const { language } = useLanguage();
+  if (!isRecord(data) || typeof data.component !== "string") return <BlockIssue message={language === "ar" ? "النشاط التفاعلي غير صالح." : "Interactive block is malformed."} />;
   const Component = registeredInteractiveComponentIds.includes(data.component as (typeof registeredInteractiveComponentIds)[number]) ? interactiveRegistry[data.component as (typeof registeredInteractiveComponentIds)[number]] : undefined;
-  if (!Component) return <BlockIssue message={`Interactive “${data.component}” is not available yet.`} />;
+  if (!Component) return <BlockIssue message={language === "ar" ? "هذا النشاط التفاعلي غير متاح حاليًا." : "This interactive activity is not available right now."} />;
   return <Card><CardContent className="p-5"><Component props={isRecord(data.props) ? data.props : {}} /></CardContent></Card>;
 }
 
 export function BlockIssue({ message }: { message: string }) { return <Alert className="border-amber-200 bg-amber-50 text-amber-900" role="status"><AlertDescription>{message}</AlertDescription></Alert>; }
 
 export function LessonBlock({ block }: { block: Block }) {
-  if (!isSupportedLessonBlockType(block.type)) return <BlockIssue message={`Unsupported lesson block type: ${block.type}`} />;
+  const { language } = useLanguage();
+  if (!isSupportedLessonBlockType(block.type)) return <BlockIssue message={language === "ar" ? "جزء من محتوى الدرس غير مدعوم. يمكنك متابعة بقية الدرس." : "Part of this lesson is not supported. You can continue with the rest of the lesson."} />;
   switch (block.type) {
     case "rich-text": return <RichTextBlock data={block.data} />;
     case "image": return <ImageBlock data={block.data} />;
@@ -95,6 +99,6 @@ export function LessonBlock({ block }: { block: Block }) {
     case "code": return <CodeBlock data={block.data} />;
     case "callout": return <CalloutBlock data={block.data} />;
     case "interactive": return <InteractiveBlock data={block.data} />;
-    default: return <BlockIssue message={`Unsupported lesson block type: ${block.type}`} />;
+    default: return <BlockIssue message={language === "ar" ? "جزء من محتوى الدرس غير مدعوم. يمكنك متابعة بقية الدرس." : "Part of this lesson is not supported. You can continue with the rest of the lesson."} />;
   }
 }

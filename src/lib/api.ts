@@ -1,10 +1,17 @@
 import type { AdminAsset, AdminBlockInput, AdminCourse, AdminCourseInput, AdminDashboard, AdminLesson, AdminLessonBlock, AdminLessonInput, AdminLessonSummary, AdminQuestion, AdminQuestionFilters, AdminQuestionInput, ApiError, AssetKind, AuthUser, Course, Lesson, LessonSummary, Question, QuestionQueryOptions, SessionResponse } from "./types";
+import { ApiRequestError } from "./errors";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, init);
+  let response: Response;
+  try {
+    response = await fetch(path, init);
+  } catch {
+    const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+    throw new ApiRequestError(offline ? "OFFLINE" : "NETWORK_ERROR");
+  }
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as ApiError | null;
-    throw new Error(body?.error.message ?? "Unable to load data");
+    throw new ApiRequestError(body?.error.code ?? "API_ERROR", response.status, body?.error.message);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
