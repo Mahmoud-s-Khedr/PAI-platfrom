@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardCheck } from "lucide-react";
 import { useLanguage } from "../app/language";
+import { PageMetadata } from "../app/page-metadata";
 import { AsyncView } from "../components/async-view";
 import { NotFoundView } from "../components/not-found-view";
 import { LessonBlock } from "../lesson-blocks/lesson-block";
@@ -74,11 +75,11 @@ export function LessonPage() {
   const nextLesson = lessonIndex >= 0 && lessonIndex < lessons.length - 1 ? lessons[lessonIndex + 1] : null;
   if (isErrorCode(error, "COURSE_NOT_FOUND")) return <NotFoundView kind="course" language={language} />;
   if (isErrorCode(error, "LESSON_NOT_FOUND")) return <NotFoundView kind="lesson" language={language} courseSlug={courseSlug} />;
-  return <AsyncView loading={!error && !lesson} error={error} language={language} onRetry={() => setLoadAttempt((attempt) => attempt + 1)}>{lesson && <section className="mx-auto max-w-4xl space-y-7"><Button asChild variant="ghost" className="w-fit px-0 text-muted-foreground hover:bg-transparent hover:text-primary"><Link to={`/courses/${courseSlug}`}><ArrowLeft className="size-4 rtl:rotate-180" />{course?.title[language] ?? (language === "ar" ? "المقرر" : "Course")}</Link></Button><div><h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{lesson.title[language]}</h1></div>
+  return <><PageMetadata title={lesson?.title[language]} description={course ? `${lesson?.title[language] ?? ""} — ${course.title[language]}` : (language === "ar" ? "درس في البرمجة والذكاء الاصطناعي." : "A programming and artificial intelligence lesson.")} language={language} /><AsyncView loading={!error && !lesson} error={error} language={language} onRetry={() => setLoadAttempt((attempt) => attempt + 1)}>{lesson && <section className="mx-auto max-w-4xl space-y-7"><Button asChild variant="ghost" className="w-fit px-0 text-muted-foreground hover:bg-transparent hover:text-primary"><Link to={`/courses/${courseSlug}`}><ArrowLeft className="size-4 rtl:rotate-180" />{course?.title[language] ?? (language === "ar" ? "المقرر" : "Course")}</Link></Button><div><h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{lesson.title[language]}</h1></div>
     <LessonVideo key={lesson.id} videoId={lesson.youtubeVideoId} title={lesson.title[language]} language={language} />
     <article className="space-y-6">{lesson.blocks.map((block) => <LessonBlock key={block.id} block={block} />)}</article>
     <Card className="border-primary/20 bg-primary/5"><CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex gap-3"><CheckCircle2 className="mt-0.5 size-5 shrink-0 text-primary" /><div><p className="font-medium">{language === "ar" ? "أنهيت محتوى الدرس؟" : "Finished the lesson content?"}</p><p className="text-sm text-muted-foreground">{language === "ar" ? "سجّل تقدّمك ثم جرّب أسئلة التدريب." : "Save your progress, then try the practice questions."}</p></div></div><Button onClick={() => studentState.completeLesson(lesson.id)}>{language === "ar" ? "وضع علامة كمكتمل" : "Mark lesson complete"}</Button></CardContent></Card>
     <Separator /><section className="space-y-4"><div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-lg bg-primary/10 text-primary"><ClipboardCheck className="size-5" /></span><h2 className="text-2xl font-semibold">{language === "ar" ? "اختبر فهمك" : "Check your understanding"}</h2></div><QuestionPractice key={lesson.id} questions={questions} /></section>
     {(previousLesson || nextLesson) && <nav className="flex flex-wrap justify-between gap-3 border-t pt-5" aria-label={language === "ar" ? "التنقل بين الدروس" : "Lesson navigation"}>{previousLesson ? <Button variant="outline" asChild><Link to={`/courses/${courseSlug}/lessons/${previousLesson.slug}`}><ArrowLeft className="size-4 rtl:rotate-180" />{language === "ar" ? "الدرس السابق" : "Previous lesson"}</Link></Button> : <span />}{nextLesson ? <Button asChild><Link to={`/courses/${courseSlug}/lessons/${nextLesson.slug}`}>{language === "ar" ? "الدرس التالي" : "Next lesson"}<ArrowRight className="size-4 rtl:rotate-180" /></Link></Button> : <span />}</nav>}
-  </section>}</AsyncView>;
+  </section>}</AsyncView></>;
 }

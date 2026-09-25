@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { findPublishedCourse, findPublishedLesson, listPublishedCourses, listPublishedLessons, listQuestionsForCourse, listQuestionsForLessons } from "../db/content";
+import { findPublishedCourse, findPublishedLesson, listPublishedCourses, listPublishedLessons, listQuestionsForCourse, listQuestionsForLessons, searchPublishedContent } from "../db/content";
 import { errorResponse } from "../lib/http";
 import type { QuestionQueryOptions } from "../../src/lib/types";
 
@@ -9,8 +9,15 @@ const content = new Hono<{ Bindings: Bindings }>();
 const positiveInteger = z.coerce.number().int().positive();
 const questionLimit = z.coerce.number().int().min(1).max(100);
 const questionDifficulty = z.enum(["easy", "medium", "hard"]);
+const searchQuery = z.string().trim().min(2).max(100);
 
 content.get("/courses", async (c) => c.json(await listPublishedCourses(c.env.DB)));
+
+content.get("/search", async (c) => {
+  const parsed = searchQuery.safeParse(c.req.query("q"));
+  if (!parsed.success) return errorResponse(c, 400, "INVALID_SEARCH_QUERY", "Search must contain 2 to 100 characters");
+  return c.json(await searchPublishedContent(c.env.DB, parsed.data));
+});
 
 content.get("/courses/:slug", async (c) => {
   const course = await findPublishedCourse(c.env.DB, c.req.param("slug"));

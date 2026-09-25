@@ -45,6 +45,9 @@ npm run cf-types
 - `GET /api/courses/:slug`
 - `GET /api/courses/:slug/lessons`
 - `GET /api/lessons/:id`
+- `GET /api/search?q=<2-to-100-character-query>` searches published course
+  metadata, lesson titles/content, and question prompts. It returns navigation
+  metadata only and never exposes a question answer.
 - `GET /api/questions?lesson=<id>`
 - `GET /api/questions?lessons=<id>,<id>`
 - `GET /api/questions?course=<course-slug>`
@@ -55,6 +58,10 @@ These public routes are read-only and expose published content only. Bad input a
 Question requests may add `difficulty=easy|medium|hard` and `limit=1..100`.
 Use `random=true` only with `limit`; it uses bounded ID seeks instead of a
 large-table random sort.
+
+The student header links to `/search`, and each course has a localized lesson
+filter. `/robots.txt` and `/sitemap.xml` are Worker-generated from published
+courses and lessons; both remain accurate as content publication changes.
 
 ## Admin API
 

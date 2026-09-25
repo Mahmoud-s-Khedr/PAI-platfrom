@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isSupportedLessonBlockType } from "../src/lesson-blocks/lesson-block";
-import { findPublishedLesson, listPublishedCourses, listPublishedLessons, listQuestionsForCourse, listQuestionsForLessons, toBlock, toLesson, toQuestion } from "../worker/db/content";
+import { findPublishedLesson, listPublishedCourses, listPublishedLessons, listQuestionsForCourse, listQuestionsForLessons, searchPublishedContent, toBlock, toLesson, toQuestion } from "../worker/db/content";
 import { content } from "../worker/routes/content";
 
 class CapturingDb {
@@ -110,6 +110,17 @@ describe("content data access", () => {
     expect(queries.some((query) => query.includes("q.id >= ?") && query.includes("LIMIT ?"))).toBe(true);
     expect(queries.join("\n")).not.toContain("ORDER BY RANDOM()");
   });
+  it("searches only published navigation data with escaped, bounded terms", async () => {
+    const db = new CapturingDb([]);
+    const results = await searchPublishedContent(db as unknown as D1Database, "100%_ready");
+    expect(db.queries).toHaveLength(3);
+    expect(db.queries[0]).toContain("WHERE status = 'published'");
+    expect(db.queries[1]).toContain("l.status = 'published' AND c.status = 'published'");
+    expect(db.queries[2]).toContain("q.status = 'published' AND c.status = 'published'");
+    expect(db.queries.join("\n")).toContain("LIMIT 20");
+    expect(db.values).toEqual(["%100!%!_ready%"]);
+    expect(results).toEqual({ courses: [], lessons: [], questions: [] });
+  });
   it("omits questions with malformed stored JSON", () => {
     const row = { id: 1, course_id: 1, type: "mcq", prompt_json: '{"ar":"س","en":"Q"}', answer_json: '{"choices":{"ar":["أ"],"en":["A"]},"correctIndex":2}', explanation_json: '{"ar":"ش","en":"E"}', difficulty: "easy" };
     expect(toQuestion(row)).toBeNull();
@@ -135,5 +146,10 @@ describe("public question query validation", () => {
     const invalidScope = await content.request("http://test/questions?lesson=1&course=first-secondary");
     expect(invalidScope.status).toBe(400);
     await expect(invalidScope.json()).resolves.toEqual({ error: { code: "INVALID_QUESTION_SCOPE", message: "Provide exactly one of lesson, lessons, or course" } });
+  });
+  it("requires a useful bounded public search query", async () => {
+    const response = await content.request("http://test/search?q=x");
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: { code: "INVALID_SEARCH_QUERY", message: "Search must contain 2 to 100 characters" } });
   });
 });

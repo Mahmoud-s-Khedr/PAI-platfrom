@@ -1,4 +1,4 @@
-import { calloutTones, type Course, type Lesson, type LessonBlock, type LessonSummary, type LocalizedText, type Question, type QuestionDifficulty, type QuestionQueryOptions, type QuestionType } from "../../src/lib/types";
+import { calloutTones, type Course, type Lesson, type LessonBlock, type LessonSummary, type LocalizedText, type Question, type QuestionDifficulty, type QuestionQueryOptions, type QuestionType, type SearchLessonResult, type SearchQuestionResult, type SearchResults } from "../../src/lib/types";
 import { z } from "zod";
 import { parseJson } from "../lib/json";
 
@@ -36,6 +36,26 @@ interface QuestionRow extends Record<string, unknown> {
   answer_json: string;
   explanation_json: string;
   difficulty: string;
+}
+
+interface SearchLessonRow extends LessonRow {
+  course_slug: string;
+  course_title_ar: string;
+  course_title_en: string;
+}
+
+interface SearchQuestionRow extends Record<string, unknown> {
+  id: number;
+  prompt_json: string;
+  difficulty: string;
+  course_slug: string;
+  course_title_ar: string;
+  course_title_en: string;
+}
+
+export interface SitemapEntry {
+  courseSlug: string;
+  lessonSlug: string | null;
 }
 
 const localizedTextSchema = z.object({ ar: z.string(), en: z.string() });
@@ -132,6 +152,19 @@ export function toQuestion(row: QuestionRow): Question | null {
   };
 }
 
+function toSearchQuestion(row: SearchQuestionRow): SearchQuestionResult | null {
+  const prompt = localizedTextSchema.safeParse(parseJson(row.prompt_json));
+  const difficulty = questionDifficultySchema.safeParse(row.difficulty);
+  if (!prompt.success || !difficulty.success) return null;
+  return {
+    id: row.id,
+    courseSlug: row.course_slug,
+    courseTitle: { ar: row.course_title_ar, en: row.course_title_en },
+    prompt: prompt.data,
+    difficulty: difficulty.data,
+  };
+}
+
 function validQuestions(rows: QuestionRow[]): Question[] {
   return rows.flatMap((row) => {
     const question = toQuestion(row);
@@ -200,6 +233,62 @@ export async function listPublishedLessons(db: D1Database, courseId: number): Pr
   const result = await db.prepare(`SELECT id, course_id, slug, title_ar, title_en, youtube_video_id, sort_order
     FROM lessons WHERE course_id = ? AND status = 'published' ORDER BY sort_order, id`).bind(courseId).all<LessonRow>();
   return result.results.map(toLessonSummary);
+}
+
+function escapedLikeTerm(query: string): string {
+  // Use ! as the SQL escape character. SQLite string literals do not treat a
+  // backslash specially, so using it here is easy to get subtly wrong.
+  return `%${query.replace(/[!%_]/g, "!$&")}%`;
+}
+
+/**
+ * A deliberately bounded D1 search for navigation. It is not a separate search
+ * service: titles, descriptions, lesson blocks, and prompts remain the source
+ * of truth, and only published content is returned.
+ */
+export async function searchPublishedContent(db: D1Database, query: string): Promise<SearchResults> {
+  const term = escapedLikeTerm(query);
+  const courseMatches = await db.prepare(`SELECT id, slug, title_ar, title_en, description_ar, description_en, sort_order
+    FROM courses
+    WHERE status = 'published'
+      AND (title_ar LIKE ? ESCAPE '!' OR title_en LIKE ? ESCAPE '!' OR description_ar LIKE ? ESCAPE '!' OR description_en LIKE ? ESCAPE '!')
+    ORDER BY sort_order, id LIMIT 12`).bind(term, term, term, term).all<CourseRow>();
+  const lessonMatches = await db.prepare(`SELECT DISTINCT l.id, l.course_id, l.slug, l.title_ar, l.title_en, l.youtube_video_id, l.sort_order,
+      c.slug AS course_slug, c.title_ar AS course_title_ar, c.title_en AS course_title_en
+    FROM lessons l
+    INNER JOIN courses c ON c.id = l.course_id
+    LEFT JOIN lesson_blocks b ON b.lesson_id = l.id
+    WHERE l.status = 'published' AND c.status = 'published'
+      AND (l.title_ar LIKE ? ESCAPE '!' OR l.title_en LIKE ? ESCAPE '!' OR b.data_json LIKE ? ESCAPE '!')
+    ORDER BY l.sort_order, l.id LIMIT 20`).bind(term, term, term).all<SearchLessonRow>();
+  const questionMatches = await db.prepare(`SELECT q.id, q.prompt_json, q.difficulty,
+      c.slug AS course_slug, c.title_ar AS course_title_ar, c.title_en AS course_title_en
+    FROM questions q
+    INNER JOIN courses c ON c.id = q.course_id
+    WHERE q.status = 'published' AND c.status = 'published'
+      AND q.prompt_json LIKE ? ESCAPE '!'
+    ORDER BY q.id LIMIT 20`).bind(term).all<SearchQuestionRow>();
+  return {
+    courses: courseMatches.results.map(toCourse),
+    lessons: lessonMatches.results.map((row) => ({
+      ...toLessonSummary(row),
+      courseSlug: row.course_slug,
+      courseTitle: { ar: row.course_title_ar, en: row.course_title_en },
+    })),
+    questions: questionMatches.results.flatMap((row) => {
+      const question = toSearchQuestion(row);
+      return question ? [question] : [];
+    }),
+  };
+}
+
+export async function listPublishedSitemapEntries(db: D1Database): Promise<SitemapEntry[]> {
+  const result = await db.prepare(`SELECT c.slug AS course_slug, l.slug AS lesson_slug
+    FROM courses c
+    LEFT JOIN lessons l ON l.course_id = c.id AND l.status = 'published'
+    WHERE c.status = 'published'
+    ORDER BY c.sort_order, c.id, l.sort_order, l.id`).all<{ course_slug: string; lesson_slug: string | null }>();
+  return result.results.map((row) => ({ courseSlug: row.course_slug, lessonSlug: row.lesson_slug }));
 }
 
 export async function findPublishedLesson(db: D1Database, id: number): Promise<Lesson | null> {

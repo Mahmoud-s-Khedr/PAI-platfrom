@@ -4,6 +4,7 @@ import { admin } from "./routes/admin";
 import { auth } from "./routes/auth";
 import { content } from "./routes/content";
 import { assets } from "./routes/assets";
+import { listPublishedSitemapEntries } from "./db/content";
 import { getSessionUser, type AuthBindings } from "./lib/auth";
 import { errorResponse } from "./lib/http";
 
@@ -36,6 +37,32 @@ app.route("/api/auth", auth);
 app.route("/api", assets);
 app.route("/api", content);
 app.route("/api/admin", admin);
+
+function xml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&apos;" })[character]!);
+}
+
+app.get("/robots.txt", (c) => {
+  const origin = new URL(c.req.url).origin;
+  return c.text(`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /login\nDisallow: /search\n\nSitemap: ${origin}/sitemap.xml\n`, 200, {
+    "Cache-Control": "public, max-age=3600",
+  });
+});
+
+app.get("/sitemap.xml", async (c) => {
+  const origin = new URL(c.req.url).origin;
+  const entries = await listPublishedSitemapEntries(c.env.DB);
+  const paths = new Set<string>(["/"]);
+  for (const entry of entries) {
+    const course = `/courses/${encodeURIComponent(entry.courseSlug)}`;
+    paths.add(course);
+    if (entry.lessonSlug) paths.add(`${course}/lessons/${encodeURIComponent(entry.lessonSlug)}`);
+  }
+  const urls = [...paths].map((path) => `  <url><loc>${xml(`${origin}${path}`)}</loc></url>`).join("\n");
+  return new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`, {
+    headers: { "Content-Type": "application/xml; charset=UTF-8", "Cache-Control": "public, max-age=3600" },
+  });
+});
 
 function deniedAdminPage(request: Request): Response {
   const arabic = request.headers.get("Accept-Language")?.toLowerCase().startsWith("ar");

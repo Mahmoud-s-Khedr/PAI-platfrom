@@ -757,10 +757,10 @@ MVP:
 
 Later:
 
-- [ ] Search lessons.
-- [ ] Search concepts.
-- [ ] Search question bank.
-- [ ] Filter lessons.
+- [x] Search lessons.
+- [x] Search concepts.
+- [x] Search question bank.
+- [x] Filter lessons.
 - [ ] Keyboard navigation.
 
 Do not add a separate search service until the data size/requirements justify it.
@@ -979,11 +979,11 @@ Before public launch:
 - [ ] Privacy policy.
 - [ ] Terms/usage rules where appropriate.
 - [ ] Copyright/content notice.
-- [ ] Page metadata.
-- [ ] Open Graph metadata.
-- [ ] Sitemap if public indexing is desired.
-- [ ] Robots configuration.
-- [ ] Custom 404 page.
+- [x] Page metadata.
+- [x] Open Graph metadata.
+- [x] Sitemap if public indexing is desired.
+- [x] Robots configuration.
+- [x] Custom 404 page.
 
 ---
 

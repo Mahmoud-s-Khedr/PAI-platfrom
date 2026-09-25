@@ -30,6 +30,12 @@ Rich text is still untrusted D1 content. The renderer skips raw HTML, does not u
 
 Language, completed lesson IDs, last-opened lesson, question-attempt/outcome counts, and a bounded list of recent mistakes are local-only. `src/storage/student-state.ts` is the small boundary around localStorage, so a later IndexedDB implementation need not affect pages or question rendering. No accounts or server-side progress exist in this phase.
 
+Public navigation search is served by `GET /api/search?q=…`, backed directly by
+D1 rather than a separate search service. It is bounded, filters strictly to
+published courses/lessons/questions, and returns question prompts without
+answers. The Worker also generates `/robots.txt` and `/sitemap.xml` from
+published routes; those two paths run before static SPA assets.
+
 ## Managed lesson assets
 
 R2 holds uploaded image and downloadable-file binaries; D1 holds generated keys

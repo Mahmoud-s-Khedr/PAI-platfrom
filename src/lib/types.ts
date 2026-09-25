@@ -50,6 +50,26 @@ export interface Question {
   difficulty: QuestionDifficulty;
 }
 
+/** Public, navigation-oriented search results never expose a question answer. */
+export interface SearchLessonResult extends LessonSummary {
+  courseSlug: string;
+  courseTitle: LocalizedText;
+}
+
+export interface SearchQuestionResult {
+  id: number;
+  courseSlug: string;
+  courseTitle: LocalizedText;
+  prompt: LocalizedText;
+  difficulty: QuestionDifficulty;
+}
+
+export interface SearchResults {
+  courses: Course[];
+  lessons: SearchLessonResult[];
+  questions: SearchQuestionResult[];
+}
+
 /** Optional controls for a public practice-question request. */
 export interface QuestionQueryOptions {
   difficulty?: QuestionDifficulty;

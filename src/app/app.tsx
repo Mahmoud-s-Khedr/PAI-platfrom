@@ -13,6 +13,8 @@ import { CoursePage } from "../pages/course-page";
 import { HomePage } from "../pages/home-page";
 import { LessonPage } from "../pages/lesson-page";
 import { LoginPage } from "../pages/login-page";
+import { SearchPage } from "../pages/search-page";
+import { PageNotFound } from "../pages/page-not-found";
 
 export function App() {
   return (
@@ -23,6 +25,7 @@ export function App() {
             <Route element={<Layout />}>
               <Route index element={<HomePage />} />
               <Route path="login" element={<LoginPage />} />
+              <Route path="search" element={<SearchPage />} />
               <Route path="admin" element={<AdminPage />} />
               <Route
                 path="admin/courses/:courseId"
@@ -42,7 +45,7 @@ export function App() {
                 path="courses/:courseSlug/lessons/:lessonSlug"
                 element={<LessonPage />}
               />
-              <Route path="*" element={<HomePage />} />
+              <Route path="*" element={<PageNotFound />} />
             </Route>
           </Routes>
         </BrowserRouter>

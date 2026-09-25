@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Languages } from "lucide-react";
+import { Languages, Search } from "lucide-react";
 import { useLanguage } from "./language";
 import { useAuth } from "./auth";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ export function Layout() {
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link className="flex items-center" to="/" aria-label="Home"><img className="h-10 w-auto object-contain" src={logo} alt="" /></Link>
         <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" asChild><Link to="/search" aria-label={language === "ar" ? "البحث في المنصة" : "Search the platform"}><Search className="size-4" /><span className="hidden sm:inline">{language === "ar" ? "بحث" : "Search"}</span></Link></Button>
           {!loading && (user ? <><span className="hidden text-sm text-muted-foreground sm:inline">{user.displayName}</span>{user.role === "admin" && <Button size="sm" variant="outline" asChild><Link to="/admin">{language === "ar" ? "الإدارة" : "Admin"}</Link></Button>}<Button size="sm" variant="ghost" onClick={signOut}>{language === "ar" ? "تسجيل الخروج" : "Sign out"}</Button></> : <Button size="sm" variant="outline" onClick={signIn}>{language === "ar" ? "تسجيل الدخول" : "Sign in"}</Button>)}
           <div className="flex items-center gap-1 rounded-lg border bg-card p-1 shadow-xs" aria-label={language === "ar" ? "اللغة" : "Language"}>
             <Languages className="mx-1 size-4 text-muted-foreground" aria-hidden="true" />

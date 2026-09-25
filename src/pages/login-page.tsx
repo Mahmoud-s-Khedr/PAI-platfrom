@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { LogIn } from "lucide-react";
 import { useLanguage } from "../app/language";
 import { useAuth } from "../app/auth";
+import { PageMetadata } from "../app/page-metadata";
 import { api } from "../lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +46,7 @@ export function LoginPage() {
       setSubmitting(false);
     }
   };
-  return <div className="mx-auto max-w-md"><Card><CardHeader><CardTitle>{isArabic ? "تسجيل الدخول" : "Sign in"}</CardTitle><CardDescription>{isArabic ? "اختياري للطلاب، ومطلوب للوصول إلى أدوات الإدارة." : "Optional for students and required for administration."}</CardDescription></CardHeader><CardContent className="space-y-5">
+  return <div className="mx-auto max-w-md"><PageMetadata title={isArabic ? "تسجيل الدخول" : "Sign in"} description={isArabic ? "تسجيل الدخول إلى منصة البرمجة والذكاء الاصطناعي." : "Sign in to the Programming and Artificial Intelligence platform."} language={language} noIndex /><Card><CardHeader><CardTitle>{isArabic ? "تسجيل الدخول" : "Sign in"}</CardTitle><CardDescription>{isArabic ? "اختياري للطلاب، ومطلوب للوصول إلى أدوات الإدارة." : "Optional for students and required for administration."}</CardDescription></CardHeader><CardContent className="space-y-5">
     {failed && <p className="text-sm text-destructive" role="alert">{isArabic ? "تعذّر إتمام تسجيل الدخول عبر Google. حاول مرة أخرى." : "Google sign-in could not be completed. Please try again."}</p>}
     {user ? <p className="text-sm">{isArabic ? `تم تسجيل الدخول باسم ${user.displayName}.` : `Signed in as ${user.displayName}.`}</p> : <>
       <form className="space-y-4" onSubmit={signInWithPassword} noValidate>
