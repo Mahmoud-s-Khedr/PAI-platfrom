@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { findPublishedCourse, findPublishedLesson, listPublishedCourses, listPublishedLessons, listQuestionsForCourse, listQuestionsForLessons, searchPublishedContent } from "../db/content";
+import { findPublishedCourse, findPublishedLesson, findPublishedLessonBySlug, listPublishedCourses, listPublishedLessons, listQuestionsForCourse, listQuestionsForLessons, searchPublishedContent } from "../db/content";
 import { errorResponse } from "../lib/http";
-import type { QuestionQueryOptions } from "../../src/lib/types";
+import type { LessonPageData, QuestionQueryOptions } from "../../src/lib/types";
 
 type Bindings = Cloudflare.Env;
 const content = new Hono<{ Bindings: Bindings }>();
@@ -28,6 +28,22 @@ content.get("/courses/:slug/lessons", async (c) => {
   const course = await findPublishedCourse(c.env.DB, c.req.param("slug"));
   if (!course) return errorResponse(c, 404, "COURSE_NOT_FOUND", "Course not found");
   return c.json(await listPublishedLessons(c.env.DB, course.id));
+});
+
+// One request for the student lesson screen instead of four sequential round trips.
+content.get("/courses/:slug/lessons/:lessonSlug", async (c) => {
+  const course = await findPublishedCourse(c.env.DB, c.req.param("slug"));
+  if (!course) return errorResponse(c, 404, "COURSE_NOT_FOUND", "Course not found");
+  const summary = await findPublishedLessonBySlug(c.env.DB, course.id, c.req.param("lessonSlug"));
+  if (!summary) return errorResponse(c, 404, "LESSON_NOT_FOUND", "Lesson not found");
+  const [lessons, lesson, questions] = await Promise.all([
+    listPublishedLessons(c.env.DB, course.id),
+    findPublishedLesson(c.env.DB, summary.id),
+    listQuestionsForLessons(c.env.DB, [summary.id]),
+  ]);
+  if (!lesson) return errorResponse(c, 404, "LESSON_NOT_FOUND", "Lesson not found");
+  const data: LessonPageData = { course, lessons, lesson, questions };
+  return c.json(data);
 });
 
 content.get("/lessons/:id", async (c) => {

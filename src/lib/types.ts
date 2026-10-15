@@ -40,6 +40,14 @@ export interface Lesson extends LessonSummary {
   blocks: LessonBlock[];
 }
 
+/** Everything the student lesson screen needs, loaded in one request. */
+export interface LessonPageData {
+  course: Course;
+  lessons: LessonSummary[];
+  lesson: Lesson;
+  questions: Question[];
+}
+
 export interface Question {
   id: number;
   courseId: number;

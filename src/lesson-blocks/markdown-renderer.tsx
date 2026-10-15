@@ -1,7 +1,7 @@
 import { isValidElement, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { SyntaxHighlightedCode } from "./syntax-highlighted-code";
+import { CodeView } from "./code-view";
 
 const controlCharacters = /[\u0000-\u001F\u007F]/;
 
@@ -41,7 +41,7 @@ function codeLanguage(className: string | undefined) {
 
 function MarkdownPre({ children, interfaceLanguage }: ComponentPropsWithoutRef<"pre"> & { interfaceLanguage: "ar" | "en" }) {
   if (isValidElement<{ className?: string; children?: ReactNode }>(children)) {
-    return <SyntaxHighlightedCode code={nodeText(children.props.children).replace(/\n$/, "")} language={codeLanguage(children.props.className)} interfaceLanguage={interfaceLanguage} />;
+    return <CodeView code={nodeText(children.props.children).replace(/\n$/, "")} language={codeLanguage(children.props.className)} interfaceLanguage={interfaceLanguage} />;
   }
   return <pre>{children}</pre>;
 }

@@ -1,4 +1,4 @@
-import type { AdminAsset, AdminBlockInput, AdminCourse, AdminCourseInput, AdminDashboard, AdminLesson, AdminLessonBlock, AdminLessonInput, AdminLessonSummary, AdminQuestion, AdminQuestionFilters, AdminQuestionInput, ApiError, AssetKind, AuthUser, Course, Lesson, LessonSummary, Question, QuestionQueryOptions, SearchResults, SessionResponse } from "./types";
+import type { AdminAsset, AdminBlockInput, AdminCourse, AdminCourseInput, AdminDashboard, AdminLesson, AdminLessonBlock, AdminLessonInput, AdminLessonSummary, AdminQuestion, AdminQuestionFilters, AdminQuestionInput, ApiError, AssetKind, AuthUser, Course, Lesson, LessonPageData, LessonSummary, Question, QuestionQueryOptions, SearchResults, SessionResponse } from "./types";
 import { ApiRequestError } from "./errors";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -41,6 +41,7 @@ export const api = {
   course: (slug: string) => get<Course>(`/api/courses/${encodeURIComponent(slug)}`),
   lessons: (courseSlug: string) => get<LessonSummary[]>(`/api/courses/${encodeURIComponent(courseSlug)}/lessons`),
   search: (query: string) => get<SearchResults>(`/api/search${queryString({ q: query })}`),
+  lessonPage: (courseSlug: string, lessonSlug: string) => get<LessonPageData>(`/api/courses/${encodeURIComponent(courseSlug)}/lessons/${encodeURIComponent(lessonSlug)}`),
   lesson: (id: number) => get<Lesson>(`/api/lessons/${id}`),
   lessonQuestions: (id: number, options: QuestionQueryOptions = {}) => get<Question[]>(`/api/questions${queryString({ lesson: id, ...options })}`),
   lessonsQuestions: (ids: number[], options: QuestionQueryOptions = {}) => get<Question[]>(`/api/questions${queryString({ lessons: ids.join(","), ...options })}`),

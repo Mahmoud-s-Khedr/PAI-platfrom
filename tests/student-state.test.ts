@@ -45,4 +45,11 @@ describe("student state", () => {
 
     expect(studentState.read()).toEqual({ language: "en", completedLessonIds: [], questionAttempts: {}, questionResults: {}, recentMistakeIds: [], lastOpenedLesson: null });
   });
+
+  it("can undo a lesson completion", () => {
+    studentState.completeLesson(4);
+    studentState.completeLesson(5);
+    studentState.uncompleteLesson(4);
+    expect(studentState.read().completedLessonIds).toEqual([5]);
+  });
 });

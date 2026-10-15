@@ -152,4 +152,22 @@ describe("public question query validation", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: { code: "INVALID_SEARCH_QUERY", message: "Search must contain 2 to 100 characters" } });
   });
+
+  it("loads the whole lesson screen in one request and keeps standard not-found errors", async () => {
+    const courseRow = { id: 1, slug: "first", title_ar: "١", title_en: "First", description_ar: "", description_en: "", sort_order: 1 };
+    const lessonRow = { id: 7, course_id: 1, slug: "binary", title_ar: "ثنائي", title_en: "Binary", youtube_video_id: null, sort_order: 1 };
+    const fakeDb = (lesson: typeof lessonRow | null) => ({
+      prepare(query: string) {
+        const rows = query.includes("FROM courses") ? [courseRow] : query.includes("FROM lesson_blocks") || query.includes("FROM questions") ? [] : lesson ? [lesson] : [];
+        const result = { results: rows };
+        return { all: async () => result, bind: () => ({ all: async () => result, first: async () => rows[0] ?? null }) };
+      },
+    });
+    const response = await content.request("http://test/courses/first/lessons/binary", {}, { DB: fakeDb(lessonRow) });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ course: { slug: "first" }, lessons: [{ id: 7 }], lesson: { id: 7, blocks: [] }, questions: [] });
+    const missing = await content.request("http://test/courses/first/lessons/nope", {}, { DB: fakeDb(null) });
+    expect(missing.status).toBe(404);
+    await expect(missing.json()).resolves.toEqual({ error: { code: "LESSON_NOT_FOUND", message: "Lesson not found" } });
+  });
 });

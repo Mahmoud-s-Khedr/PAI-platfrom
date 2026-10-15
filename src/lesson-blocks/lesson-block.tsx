@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MarkdownRenderer } from "./markdown-renderer";
-import { SyntaxHighlightedCode } from "./syntax-highlighted-code";
+import { CodeView } from "./code-view";
 import { calloutTones, type CalloutTone, type Language } from "../lib/types";
 
 function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null; }
@@ -63,7 +63,7 @@ export function FileBlock({ data }: { data: unknown }) {
 export function CodeBlock({ data }: { data: unknown }) {
   const { language } = useLanguage();
   if (!isRecord(data) || typeof data.code !== "string") return <BlockIssue message={language === "ar" ? "جزء الكود غير صالح." : "Code block is malformed."} />;
-  return <SyntaxHighlightedCode code={data.code} language={typeof data.language === "string" ? data.language : undefined} interfaceLanguage={language} />;
+  return <CodeView code={data.code} language={typeof data.language === "string" ? data.language : undefined} interfaceLanguage={language} />;
 }
 
 export function CalloutBlock({ data }: { data: unknown }) {

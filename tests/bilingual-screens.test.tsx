@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { LanguageProvider } from "../src/app/language";
@@ -13,7 +14,7 @@ import type { Course, Lesson, LessonSummary, Question } from "../src/lib/types";
 
 vi.mock("../src/lib/api", () => ({
   api: {
-    courses: vi.fn(), course: vi.fn(), lessons: vi.fn(), lesson: vi.fn(),
+    courses: vi.fn(), course: vi.fn(), lessons: vi.fn(), lesson: vi.fn(), lessonPage: vi.fn(),
     lessonQuestions: vi.fn(), lessonsQuestions: vi.fn(), courseQuestions: vi.fn(),
   },
 }));
@@ -51,6 +52,7 @@ beforeEach(() => {
   vi.mocked(api.lessons).mockResolvedValue(lessons);
   vi.mocked(api.lesson).mockResolvedValue(lesson);
   vi.mocked(api.lessonQuestions).mockResolvedValue(questions);
+  vi.mocked(api.lessonPage).mockResolvedValue({ course, lessons, lesson, questions });
 });
 
 describe.each([
@@ -81,5 +83,16 @@ describe.each([
     expect(screen.getByRole("note")).toHaveTextContent(calloutTitle);
     expect(screen.getByRole("button", { name: language === "ar" ? "وضع علامة كمكتمل" : "Mark lesson complete" })).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: language === "ar" ? "التنقل بين الدروس" : "Lesson navigation" })).toHaveClass("flex-wrap");
+    expect(screen.getByRole("button", { name: language === "ar" ? "مشاركة" : "Share" })).toBeInTheDocument();
+  });
+
+  it("shows and undoes lesson completion", async () => {
+    setLanguage(language);
+    renderLesson();
+    await userEvent.click(await screen.findByRole("button", { name: language === "ar" ? "وضع علامة كمكتمل" : "Mark lesson complete" }));
+    expect(screen.getByText(language === "ar" ? "أكملت هذا الدرس" : "You completed this lesson")).toBeInTheDocument();
+    expect(studentState.read().completedLessonIds).toEqual([1]);
+    await userEvent.click(screen.getByRole("button", { name: language === "ar" ? "إلغاء الإكمال" : "Mark as not complete" }));
+    expect(studentState.read().completedLessonIds).toEqual([]);
   });
 });

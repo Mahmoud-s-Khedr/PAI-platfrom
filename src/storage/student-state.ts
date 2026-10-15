@@ -90,6 +90,10 @@ export const studentState = {
     const state = read();
     write({ ...state, completedLessonIds: [...new Set([...state.completedLessonIds, id])] });
   },
+  uncompleteLesson(id: number) {
+    const state = read();
+    write({ ...state, completedLessonIds: state.completedLessonIds.filter((completedId) => completedId !== id) });
+  },
   openLesson(lesson: Omit<LastOpenedLesson, "openedAt">) {
     if (!positiveInteger(lesson.lessonId) || !lesson.courseSlug || !lesson.lessonSlug) return;
     write({ ...read(), lastOpenedLesson: { ...lesson, openedAt: Date.now() } });
