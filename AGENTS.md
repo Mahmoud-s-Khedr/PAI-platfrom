@@ -17,8 +17,11 @@ React SPA (src/) → same-origin /api/* → Hono Worker (worker/) → Cloudflare
 - The UI uses React, TypeScript, Vite, React Router, Tailwind CSS, and locally owned shadcn/ui components in `src/components/ui`; prefer those components over new custom primitives.
 - The Worker runs through `@cloudflare/vite-plugin` in local `workerd`, not a Node API mock.
 - `src/lib/types.ts` defines the API/domain shapes shared by browser and Worker mapping code.
-- `src/storage/student-state.ts` is the only browser-storage boundary. Student state is local only; there are no accounts or server-side progress records in this phase.
-- The public API is read-only. Preserve the JSON error shape: `{ error: { code, message } }`.
+- `src/storage/student-state.ts` is the only browser-storage boundary. Student state is local only; there are no student accounts or per-student server-side progress records.
+- The public API is read-only, with two deliberate exceptions:
+  - `POST /api/stats/*` records **anonymous aggregate** counters (daily per-question correct/incorrect and per-lesson opens/completions). It stores no IP address, user agent, or student identifier.
+  - `/api/mcp` is the remote MCP authoring endpoint for the teacher's AI agents. It accepts only a revocable `Authorization: Bearer pai_agent_…` token, never a browser session cookie, and every write is recorded in `audit_log`.
+- Preserve the JSON error shape: `{ error: { code, message } }`.
 - `/api/*` must continue to route to the Worker; client application routes use SPA fallback. Preserve `assets.run_worker_first: ["/api/*"]` and `assets.not_found_handling: "single-page-application"` unless routing requirements explicitly change.
 - When changing `wrangler.jsonc`, Vite/Cloudflare configuration, or asset routing, verify both an API request and direct navigation to a client-side route.
 - Do not casually remove or alter these API and SPA routing settings.
@@ -35,6 +38,8 @@ React SPA (src/) → same-origin /api/* → Hono Worker (worker/) → Cloudflare
 | `src/lib/` | Shared types, API client, utilities |
 | `src/storage/` | Local student-state abstraction |
 | `worker/routes/` | HTTP endpoints and input validation |
+| `worker/services/` | Shared authoring logic used by admin routes and MCP tools |
+| `worker/mcp/` | Remote MCP server and agent tools |
 | `worker/db/` | D1 queries and database-to-domain mapping |
 | `migrations/` | Immutable, ordered D1 schema migrations |
 | `scripts/seed.sql` | Idempotent demo data only |
@@ -76,7 +81,9 @@ npm run build
 - Avoid scattered unchecked `JSON.parse(...) as SomeType` casts; centralize mapping and validation where practical.
 - `rich-text` blocks are localized safe Markdown. Keep raw HTML as text; never inject unsafe D1 HTML or execute D1 JavaScript. Markdown images remain disabled in favor of validated image blocks.
 - New interactive types must be explicitly registered in `src/interactives/registry.tsx`. Unknown lesson block or interactive types should remain contained with a user-visible notice.
-- Existing admin authentication and private-R2 asset delivery are explicitly in scope. Do not add student accounts, server-side student progress, public R2 buckets, or a content-ingestion flow without an explicit scope change.
+- Existing admin authentication, private-R2 asset delivery, agent tokens with the audit log, and anonymous aggregate stats are explicitly in scope. Do not add student accounts, per-student server-side progress, public R2 buckets, or a content-ingestion flow without an explicit scope change.
+- Admin HTTP routes and MCP tools share `worker/services/authoring.ts`; put new authoring validation and invariants there so both write paths behave identically.
+- Agents author through MCP and never receive Cloudflare credentials, Wrangler access, or direct D1/R2 access.
 
 ## Data and API changes
 

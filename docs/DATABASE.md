@@ -6,7 +6,6 @@ The Phase 1 content schema lives in `migrations/0001_initial_schema.sql`; authen
 | --- | --- | --- |
 | `courses` | Bilingual course metadata | Unique `slug`; status is `draft`, `published`, or `archived`; ordered by `sort_order`. |
 | `lessons` | Bilingual course lessons | `course_id → courses.id`; unique `(course_id, slug)`; nullable `youtube_video_id` stores only the YouTube ID. |
-| `lesson_production_metadata` | Protected editorial evidence | One row per lesson: source identifiers and author-written notes, review checklist, interactive decision, original-work attestation, correction reason, and self-certification identity/timestamp. It is never returned by public APIs. |
 | `lesson_blocks` | Ordered generic lesson content | `lesson_id → lessons.id`; constrained block types including `file`; one `data_json` payload instead of per-block tables. |
 | `questions` | Generic question-bank records | `course_id → courses.id`; constrained initial types; JSON prompt, answer, and explanation. |
 | `question_lessons` | Optional question-to-lesson scoping | Composite PK `(question_id, lesson_id)`, cascading foreign keys, and a trigger requiring the question and lesson to have the same course. |
@@ -26,16 +25,17 @@ The block set includes a `file` download block. Its payload stores an `assetId`
 and bilingual display text; the binary remains in private R2 and is served only
 through the Worker after a published-content check.
 
-## Production readiness
+## Publishing
 
-`0005_lesson_production_metadata.sql` migrates legacy demo question difficulty
-`beginner` to `easy` and adds the per-lesson editorial record. The protected
-lesson update route requires complete Arabic and English source references and
-author notes, original-work attestation, all checklist entries, a documented
-interactive decision, a real YouTube ID, signed-in-admin self-certification,
-and at least one mapped published question before it accepts `published`.
-Existing demo content receives empty evidence and remains distinguishable from
-reviewed authored material.
+The platform has a single content owner. `draft`, `published`, and `archived`
+are the only publishing controls; there is no review checklist, attestation, or
+readiness gate.
+
+`0005_lesson_production_metadata.sql` migrated legacy demo question difficulty
+`beginner` to `easy`, added triggers that enforce `easy`/`medium`/`hard`, and
+created a per-lesson editorial-evidence table for a since-retired review
+process. `0007_drop_lesson_production_metadata.sql` drops that table; the
+difficulty triggers remain.
 
 ## Local verification
 

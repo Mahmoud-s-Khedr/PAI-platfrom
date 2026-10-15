@@ -36,8 +36,7 @@ All request JSON is validated. Error responses use the established format
 | Delete an unused asset | `DELETE /api/admin/assets/:id` |
 
 Deleting a course is permanent. Database foreign-key cascades remove its lessons,
-lesson blocks, questions, question-to-lesson mappings, block asset links, and
-lesson production metadata. Uploaded asset records and their R2 objects are not
+lesson blocks, questions, question-to-lesson mappings, and block asset links. Uploaded asset records and their R2 objects are not
 deleted automatically, so they remain available for reuse or separate cleanup.
 
 `GET /api/admin/questions` accepts optional `search`, `courseId`, `lessonId`,
@@ -52,20 +51,12 @@ Course, lesson, and question mutations use bilingual `{ "ar", "en" }` text.
 Lesson-block and question payloads are checked against the supported types
 before being serialized to D1.
 
-Questions use only `easy`, `medium`, or `hard` difficulty. Lesson responses
-from `GET /api/admin/lessons/:id` additionally include protected `production`
-metadata and `publishingReadiness`. Production metadata holds source
-identifiers/edition labels and author-written high-level notes, never textbook
-text or PDFs. Its `selfCertificationConfirmed` request flag is only an
-affirmative action: the Worker records the signed-in admin identity and its own
-timestamp, and never accepts either from the browser.
+Questions use only `easy`, `medium`, or `hard` difficulty.
 
-Changing a lesson to `published` returns
-`400 LESSON_NOT_READY_FOR_PUBLICATION` unless the full bilingual source and
-coverage evidence, terminology/structure/comparison notes, original-work
-attestation, checklist, interactive decision, YouTube ID, certification, and a
-mapped published question are present. The response’s `publishingReadiness`
-field gives the CMS a non-sensitive list of incomplete requirements.
+Publishing is a status change. The single admin moves courses, lessons, and
+questions between `draft`, `published`, and `archived`; there is no review
+checklist, self-certification, or readiness gate. Content-quality guidance lives
+in [content quality standards](CONTENT_QUALITY_STANDARDS.md) and is advisory.
 
 Asset uploads use `multipart/form-data` with `kind` and `file` fields. Images
 allow JPEG, PNG, WebP, and GIF up to 8 MiB. Resources allow PDF, ZIP, DOCX,

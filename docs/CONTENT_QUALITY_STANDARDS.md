@@ -1,11 +1,12 @@
 # Content quality standards
 
-Version 1.0 — 2026-09-21
+Version 2.0 — 2026-10-16
 
-This standard applies to every authored lesson. It governs original teaching
+This standard applies to every authored lesson, whether the teacher writes it
+in the CMS or an AI agent writes it through MCP. It governs original teaching
 material; it does not authorize importing, quoting, serving, or extracting the
-internal textbook PDFs. Authors may record only an official source identifier,
-edition/reference label, and their own high-level coverage notes in the CMS.
+internal textbook PDFs. It is guidance for the single content owner, not a
+gate: the platform does not record evidence or block publishing.
 
 ## Lesson template
 
@@ -24,7 +25,7 @@ English experience in LTR.
 
 ## Terminology
 
-Record terminology notes in both languages. Choose a consistent Arabic term,
+Choose a consistent Arabic term,
 its English equivalent, and any useful paired form on first use. Do not switch
 between Arabic translations without explaining a necessary distinction. Keep
 code identifiers and language keywords in their original form and explain them
@@ -40,9 +41,8 @@ they assess. Use only these difficulty values:
 - `hard`: combine concepts, diagnose a result, or complete a non-trivial step.
 
 An explanation should state why the correct answer works and, when helpful,
-why a likely alternative does not. A published lesson needs at least one mapped
-published question; a useful pilot includes `easy`, `medium`, and `hard`
-coverage.
+why a likely alternative does not. Aim for at least one mapped published
+question per lesson and a mix of `easy`, `medium`, and `hard` coverage.
 
 ## Diagrams, images, video, and interactives
 
@@ -56,24 +56,19 @@ real, public lesson video resolves and that its title and presentation support
 both language experiences.
 
 An interactive is justified only when it materially helps students practise or
-observe something that static explanation cannot. Record either:
-
-- `implemented`, with the exact component registered in `src/interactives/registry.tsx`; or
-- `not needed`, with a bilingual rationale.
+observe something that static explanation cannot. Use only components
+registered in `src/interactives/registry.tsx`.
 
 An interactive must be keyboard reachable, describe its controls and outcome,
 avoid unsafe code execution, and work in Arabic RTL and English LTR.
 
-## Review, certification, and corrections
+## Checking and corrections
 
-The protected lesson editor records the author’s self-certification against the
-currently signed-in admin and the Worker timestamp. It is accountability
-evidence, not independent approval. Publishing is blocked until both source
-references, author notes, original-work attestation, every checklist item, an
-interactive decision, a YouTube ID, self-certification, and a mapped published
-question are present.
+Before publishing, preview the lesson as a student (the CMS lesson editor links
+to a draft preview) in Arabic RTL and English LTR, and answer every mapped
+question once. Agent-written content gets the same check.
 
-To correct a draft or published lesson: return it to draft if needed, document
-the correction reason, make the correction, rerun all relevant review checks,
-self-certify again, and then republish. Never silently replace published
-material or use a correction as a route to reproduce a source text.
+To correct published material, edit it in place or return it to draft first if
+the change is large. Never use a correction as a route to reproduce a source
+text. Every agent write is recorded in the audit log, and admin writes are
+recorded there too.

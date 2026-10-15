@@ -17,21 +17,25 @@ statuses are the only publishing workflow controls. Content-quality guidance is
 still useful, but the app must not require a reviewer checklist, an approval
 decision, a self-attestation, or a second-person sign-off before publishing.
 
-### Retired completed work — cleanup reference
+### Retired editorial review — cleaned up
 
-The following completed multi-person editorial features have been removed from
-the active UI and protected API. They are listed here so their remaining
-historical database and documentation references are easy to find.
+The multi-person editorial features (source-evidence record, attestation,
+review checklist, self-certification, and the publication-readiness gate) were
+removed from the UI and API, their documentation was rewritten, and
+`migrations/0007_drop_lesson_production_metadata.sql` drops the
+`lesson_production_metadata` table. Migration `0005` is left unchanged.
 
-| Retired feature | Removed active code | Historical reference to remove later |
-| --- | --- | --- |
-| Source-evidence record, terminology/coverage notes, and correction log | `src/pages/admin-lesson-page.tsx`, `src/lib/types.ts`, `worker/routes/admin.ts`, `worker/db/admin.ts` | `migrations/0005_lesson_production_metadata.sql` → `lesson_production_metadata` table and its rows |
-| Original-work attestation, review checklist, interactive decision, and self-certification | Same files as above | The corresponding columns in `lesson_production_metadata` from migration `0005` |
-| Publication-readiness gate based on that metadata, video, and mapped questions | `worker/routes/admin.ts`, `worker/db/admin.ts`, `tests/admin-api.test.ts` | `docs/ADMIN_API.md`, `docs/DATABASE.md`, and `docs/CONTENT_QUALITY_STANDARDS.md` still describe the retired process and should be revised or deleted with the legacy table |
+## Improvement plan progress (2026-10)
 
-Do not rewrite migration `0005`, because it may already be applied. If the
-legacy table is to be physically removed, add a new migration after backing up
-any data that needs to be retained.
+- [x] Phase 0 — Scope update (anonymous stats, agent MCP), retired-review cleanup, migration 0007.
+- [x] Phase 1 — Code splitting, lazy Prism, small logo, one-request lesson load, completion undo, share, bilingual interactives.
+- [ ] Phase 2 — Shared authoring service, agent tokens and audit log, remote MCP at `/api/mcp`, draft preview.
+- [ ] Phase 3 — Security headers, rate limiting, backups, `npm audit`.
+- [ ] Phase 4 — Production deployment and first real unit (teacher-driven).
+- [ ] Phase 5 — Mistakes review and mock exam.
+- [ ] Phase 6 — Anonymous teacher analytics.
+- [ ] Phase 7 — Python playground (Pyodide in a Web Worker).
+- [ ] Phase 8 — PWA basics.
 
 ---
 

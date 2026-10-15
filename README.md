@@ -53,7 +53,11 @@ npm run cf-types
 - `GET /api/questions?course=<course-slug>`
 - `GET /api/assets/:id` for assets linked from published lessons (administrators can also preview draft assets)
 
-These public routes are read-only and expose published content only. Bad input and missing resources use a JSON error object with `error.code` and `error.message`. See [database documentation](docs/DATABASE.md) for course-wide question semantics.
+These public routes are read-only and expose published content only. The two
+deliberate write exceptions are the anonymous aggregate counters under
+`POST /api/stats/*` and the agent-token-protected MCP endpoint at `/api/mcp`
+(see [agent authoring](docs/AGENT_AUTHORING_API.md)). There are still no
+student accounts. Bad input and missing resources use a JSON error object with `error.code` and `error.message`. See [database documentation](docs/DATABASE.md) for course-wide question semantics.
 
 Question requests may add `difficulty=easy|medium|hard` and `limit=1..100`.
 Use `random=true` only with `limit`; it uses bounded ID seeks instead of a
@@ -80,8 +84,9 @@ guide](docs/AUTHENTICATION.md) and [admin API guide](docs/ADMIN_API.md).
 3. Copy the returned `database_id` into `wrangler.jsonc` (keep the `DB` binding and `pai-platform` name).
 4. Create the private asset bucket: `npx wrangler r2 bucket create pai-platform-assets --location=enam`.
 5. Run `npm run db:migrate:remote`.
-6. Optionally load the clearly marked demo data with `npm run db:seed:remote`.
-7. Run `npm run deploy`.
+6. Run `npm run deploy`.
+
+Do not load the development/demo seed into production.
 
 Keep the R2 bucket private. The Worker validates all uploads and only exposes an
 asset publicly when it is linked from a published lesson in a published course.
