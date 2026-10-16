@@ -17,6 +17,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply pai-platform --remote",
     "db:seed:local": "wrangler d1 execute pai-platform --local --file=./scripts/seed.sql",
     "db:seed:remote": "wrangler d1 execute pai-platform --remote --file=./scripts/seed.sql",
+    "db:backup": "node scripts/backup-d1.mjs",
     "db:bootstrap-admin:local": "node --env-file-if-exists=.dev.vars scripts/bootstrap-admin.mjs --local",
     "db:bootstrap-admin:remote": "node scripts/bootstrap-admin.mjs --remote"
   },

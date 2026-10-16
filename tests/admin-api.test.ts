@@ -1,3 +1,4 @@
+import { rateLimitBindings } from "./helpers/rate-limit";
 import { describe, expect, it } from "vitest";
 import { app } from "../worker/index";
 import { findPublishedStoredAsset, listAdminDashboard } from "../worker/db/admin";
@@ -85,33 +86,33 @@ describe("admin API protection", () => {
   });
 
   it("returns 403 to an authenticated student", async () => {
-    const response = await app.request("http://test/api/admin/courses", { headers: sessionHeaders }, { DB: new AdminDb("student") } as unknown as Cloudflare.Env);
+    const response = await app.request("http://test/api/admin/courses", { headers: sessionHeaders }, { ...rateLimitBindings, DB: new AdminDb("student") } as unknown as Cloudflare.Env);
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toEqual({ error: { code: "ADMIN_ACCESS_DENIED", message: "Administrator access is required" } });
   });
 
   it("denies the Worker-first admin shell to a signed-in student", async () => {
-    const response = await app.request("http://test/admin", { headers: sessionHeaders }, { DB: new AdminDb("student") } as unknown as Cloudflare.Env);
+    const response = await app.request("http://test/admin", { headers: sessionHeaders }, { ...rateLimitBindings, DB: new AdminDb("student") } as unknown as Cloudflare.Env);
     expect(response.status).toBe(403);
     await expect(response.text()).resolves.toContain("Access denied");
   });
 
   it("allows an admin session and validates writes after authorization", async () => {
-    const env = { DB: new AdminDb("admin") } as unknown as Cloudflare.Env;
+    const env = { ...rateLimitBindings, DB: new AdminDb("admin") } as unknown as Cloudflare.Env;
     const response = await app.request("http://test/api/admin/courses", { method: "POST", headers: { ...sessionHeaders, "Content-Type": "application/json" }, body: JSON.stringify({ slug: "Invalid Capitalization" }) }, env);
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: { code: "INVALID_REQUEST_BODY", message: "Request body is invalid" } });
   });
 
   it("rejects an invalid asset upload before it can reach R2", async () => {
-    const response = await app.request("http://test/api/admin/assets", { method: "POST", headers: { ...sessionHeaders, "Content-Type": "application/json" }, body: "{}" }, { DB: new AdminDb("admin") } as unknown as Cloudflare.Env);
+    const response = await app.request("http://test/api/admin/assets", { method: "POST", headers: { ...sessionHeaders, "Content-Type": "application/json" }, body: "{}" }, { ...rateLimitBindings, DB: new AdminDb("admin") } as unknown as Cloudflare.Env);
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: { code: "INVALID_ASSET_UPLOAD", message: "Upload must be multipart form data" } });
   });
 
   it("supports escaped prompt search only for an admin session", async () => {
     const db = new AdminDb("admin");
-    const response = await app.request("http://test/api/admin/questions?search=100%_match", { headers: sessionHeaders }, { DB: db } as unknown as Cloudflare.Env);
+    const response = await app.request("http://test/api/admin/questions?search=100%_match", { headers: sessionHeaders }, { ...rateLimitBindings, DB: db } as unknown as Cloudflare.Env);
     expect(response.status).toBe(200);
     const searchIndex = db.queries.findIndex((query) => query.includes("LIKE ? ESCAPE"));
     expect(db.queries[searchIndex]).toContain("LIKE ? ESCAPE");
@@ -124,7 +125,7 @@ describe("admin API protection", () => {
       method: "PATCH",
       headers: { ...sessionHeaders, "Content-Type": "application/json" },
       body: JSON.stringify({ courseId: 2 }),
-    }, { DB: new InvariantDb() } as unknown as Cloudflare.Env);
+    }, { ...rateLimitBindings, DB: new InvariantDb() } as unknown as Cloudflare.Env);
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toEqual({ error: { code: "LESSON_COURSE_CHANGE_REQUIRES_QUESTION_REASSIGNMENT", message: "Unmap lesson questions before moving this lesson to another course" } });
   });
@@ -134,7 +135,7 @@ describe("admin API protection", () => {
     const response = await app.request("http://test/api/admin/courses/7", {
       method: "DELETE",
       headers: sessionHeaders,
-    }, { DB: db } as unknown as Cloudflare.Env);
+    }, { ...rateLimitBindings, DB: db } as unknown as Cloudflare.Env);
     expect(response.status).toBe(204);
     expect(db.queries).toContain("DELETE FROM courses WHERE id = ?");
   });
@@ -144,19 +145,19 @@ describe("admin API protection", () => {
       method: "POST",
       headers: { ...sessionHeaders, "Content-Type": "application/json" },
       body: JSON.stringify({ type: "rich-text", data: { ar: "نص", en: "Text" }, sortOrder: 1 }),
-    }, { DB: new InvariantDb() } as unknown as Cloudflare.Env);
+    }, { ...rateLimitBindings, DB: new InvariantDb() } as unknown as Cloudflare.Env);
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toEqual({ error: { code: "BLOCK_SORT_ORDER_CONFLICT", message: "Another block already uses this sort order" } });
   });
 
   it("rejects unsupported difficulty", async () => {
-    const badDifficulty = await app.request("http://test/api/admin/questions", { method: "POST", headers: { ...sessionHeaders, "Content-Type": "application/json" }, body: JSON.stringify({ courseId: 1, type: "true_false", prompt: { ar: "س", en: "Q" }, answer: { correct: true }, explanation: { ar: "ش", en: "E" }, difficulty: "beginner", status: "draft", lessonIds: [] }) }, { DB: new AdminDb("admin") } as unknown as Cloudflare.Env);
+    const badDifficulty = await app.request("http://test/api/admin/questions", { method: "POST", headers: { ...sessionHeaders, "Content-Type": "application/json" }, body: JSON.stringify({ courseId: 1, type: "true_false", prompt: { ar: "س", en: "Q" }, answer: { correct: true }, explanation: { ar: "ش", en: "E" }, difficulty: "beginner", status: "draft", lessonIds: [] }) }, { ...rateLimitBindings, DB: new AdminDb("admin") } as unknown as Cloudflare.Env);
     expect(badDifficulty.status).toBe(400);
   });
 
   it("lets the sole admin publish a lesson without editorial self-approval", async () => {
     const base = { courseId: 1, slug: "pilot", title: { ar: "درس", en: "Lesson" }, youtubeVideoId: "abc123", status: "published", sortOrder: 1 };
-    const published = await app.request("http://test/api/admin/lessons/4", { method: "PATCH", headers: { ...sessionHeaders, "Content-Type": "application/json" }, body: JSON.stringify(base) }, { DB: new PublishingDb() } as unknown as Cloudflare.Env);
+    const published = await app.request("http://test/api/admin/lessons/4", { method: "PATCH", headers: { ...sessionHeaders, "Content-Type": "application/json" }, body: JSON.stringify(base) }, { ...rateLimitBindings, DB: new PublishingDb() } as unknown as Cloudflare.Env);
     expect(published.status).toBe(200);
     await expect(published.json()).resolves.toEqual(expect.objectContaining({ status: "published" }));
   });
@@ -168,7 +169,7 @@ describe("asset delivery", () => {
       prepare: (query: string) => ({ bind: () => ({ first: async () => query.includes("FROM assets") ? ({ id: 9, key: "assets/image/00000000-0000-0000-0000-000000000000.png", mime_type: "image/png", metadata_json: '{"kind":"image","fileName":"safe.png","size":4}', created_at: "2026-01-01 00:00:00", linked_block_count: 0 }) : null }) }),
     } as unknown as D1Database;
     const bucket = { get: async () => ({ body: new Blob(["safe"]).stream(), httpEtag: '"etag"' }) } as unknown as R2Bucket;
-    const response = await app.request("http://test/api/assets/9", undefined, { DB: db, ASSET_BUCKET: bucket } as unknown as Cloudflare.Env);
+    const response = await app.request("http://test/api/assets/9", undefined, { ...rateLimitBindings, DB: db, ASSET_BUCKET: bucket } as unknown as Cloudflare.Env);
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("image/png");
     expect(response.headers.get("Content-Disposition")).toBe('inline; filename="safe.png"');
@@ -199,7 +200,7 @@ describe("asset delivery", () => {
       prepare: () => ({ bind: () => ({ first: async () => null }) }),
     } as unknown as D1Database;
     const bucket = { get: async () => { bucketRead = true; return null; } } as unknown as R2Bucket;
-    const response = await app.request("http://test/api/assets/9", undefined, { DB: db, ASSET_BUCKET: bucket } as unknown as Cloudflare.Env);
+    const response = await app.request("http://test/api/assets/9", undefined, { ...rateLimitBindings, DB: db, ASSET_BUCKET: bucket } as unknown as Cloudflare.Env);
     expect(response.status).toBe(404);
     expect(bucketRead).toBe(false);
   });
@@ -215,7 +216,7 @@ describe("asset delivery", () => {
       } }) }),
     } as unknown as D1Database;
     const bucket = { get: async () => ({ body: new Blob(["safe"]).stream(), httpEtag: '"etag"' }) } as unknown as R2Bucket;
-    const response = await app.request("http://test/api/assets/9", { headers: sessionHeaders }, { DB: db, ASSET_BUCKET: bucket } as unknown as Cloudflare.Env);
+    const response = await app.request("http://test/api/assets/9", { headers: sessionHeaders }, { ...rateLimitBindings, DB: db, ASSET_BUCKET: bucket } as unknown as Cloudflare.Env);
     expect(response.status).toBe(200);
   });
 });

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { app } from "../worker/index";
 import { createAgentToken } from "../worker/lib/agent-auth";
 import { createTestD1, type TestD1 } from "./helpers/sqlite-d1";
+import { rateLimitBindings } from "./helpers/rate-limit";
 
 let db: TestD1;
 let token: string;
@@ -12,7 +13,7 @@ const bucket = {
 };
 
 function env() {
-  return { DB: db, ASSET_BUCKET: bucket } as unknown as Cloudflare.Env;
+  return { ...rateLimitBindings, DB: db, ASSET_BUCKET: bucket } as unknown as Cloudflare.Env;
 }
 
 let nextId = 1;

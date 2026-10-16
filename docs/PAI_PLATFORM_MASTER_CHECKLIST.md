@@ -30,12 +30,22 @@ removed from the UI and API, their documentation was rewritten, and
 - [x] Phase 0 — Scope update (anonymous stats, agent MCP), retired-review cleanup, migration 0007.
 - [x] Phase 1 — Code splitting, lazy Prism, small logo, one-request lesson load, completion undo, share, bilingual interactives.
 - [x] Phase 2 — Shared authoring service, agent tokens and audit log, remote MCP at `/api/mcp`, draft preview.
-- [ ] Phase 3 — Security headers, rate limiting, backups, `npm audit`.
+- [x] Phase 3 — Baseline security headers, sign-in/authoring rate limits, protected D1 export helper and local restore drill, clean `npm audit`.
 - [ ] Phase 4 — Production deployment and first real unit (teacher-driven).
 - [ ] Phase 5 — Mistakes review and mock exam.
 - [ ] Phase 6 — Anonymous teacher analytics.
 - [ ] Phase 7 — Python playground (Pyodide in a Web Worker).
 - [ ] Phase 8 — PWA basics.
+
+Phase 3 was verified locally on 2026-10-16: 117 tests, typecheck, build,
+zero audit vulnerabilities, production-preview API and direct SPA routes,
+and a real sign-in 429 after the configured request budget. A local D1 export
+was imported into isolated persistence and checked against original row counts
+and foreign keys. Production backup scheduling, a matched R2 restore drill,
+and deployment remain Phase 4 operator work. The mobile Arabic/English browser
+walkthrough and real external MCP-client checks remain outstanding. The baseline
+CSP restricts embedding, base URLs, and form targets; it is not a strict script
+allowlist. See `OPERATIONS.md` for the controls and limitations.
 
 ---
 
@@ -647,7 +657,7 @@ Initial approach:
 - [x] Validate every write operation.
 - [ ] Add upload restrictions.
 - [ ] Review CSRF needs if cookie/session auth is added.
-- [ ] Add rate limiting to sensitive endpoints if useful.
+- [x] Add rate limiting to sensitive endpoints if useful.
 - [ ] Consider Cloudflare Access for initial admin protection.
 
 Later, if multiple staff/admin users exist:
@@ -835,8 +845,8 @@ Not required for the first internal release, but valuable later.
 - [ ] Add appropriate security headers.
 - [x] Protect admin routes.
 - [x] Protect write endpoints.
-- [ ] Review dependencies for vulnerabilities.
-- [ ] Create backup/export plan for authored content.
+- [x] Review dependencies for vulnerabilities.
+- [x] Create backup/export plan for authored content.
 
 ---
 

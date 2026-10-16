@@ -10,9 +10,11 @@ import { errorResponse } from "./lib/http";
 import { requireAgent } from "./lib/agent-auth";
 import { handleMcpRequest } from "./mcp/server";
 import type { Actor } from "./services/authoring";
+import { limitSensitiveRequests, secureResponses } from "./lib/security";
 
 type Bindings = AuthBindings;
 export const app = new Hono<{ Bindings: Bindings; Variables: { agent: Actor } }>();
+app.use("*", secureResponses);
 
 // Keep request logs useful for operations without recording cookies, query strings, or student input.
 app.use("/api/*", async (c, next) => {
@@ -34,6 +36,8 @@ app.onError((error, c) => {
   console.error(JSON.stringify({ event: "api_error", message: error.message }));
   return errorResponse(c, 500, "INTERNAL_ERROR", "An unexpected error occurred");
 });
+
+app.use("/api/*", limitSensitiveRequests);
 
 app.get("/api/health", (c) => c.json({ ok: true }));
 // Remote MCP for authoring agents: bearer agent tokens only, never browser cookies.
