@@ -29,7 +29,7 @@ removed from the UI and API, their documentation was rewritten, and
 
 - [x] Phase 0 — Scope update (anonymous stats, agent MCP), retired-review cleanup, migration 0007.
 - [x] Phase 1 — Code splitting, lazy Prism, small logo, one-request lesson load, completion undo, share, bilingual interactives.
-- [ ] Phase 2 — Shared authoring service, agent tokens and audit log, remote MCP at `/api/mcp`, draft preview.
+- [x] Phase 2 — Shared authoring service, agent tokens and audit log, remote MCP at `/api/mcp`, draft preview.
 - [ ] Phase 3 — Security headers, rate limiting, backups, `npm audit`.
 - [ ] Phase 4 — Production deployment and first real unit (teacher-driven).
 - [ ] Phase 5 — Mistakes review and mock exam.

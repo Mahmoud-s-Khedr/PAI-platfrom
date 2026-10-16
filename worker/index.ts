@@ -7,9 +7,12 @@ import { assets } from "./routes/assets";
 import { listPublishedSitemapEntries } from "./db/content";
 import { getSessionUser, type AuthBindings } from "./lib/auth";
 import { errorResponse } from "./lib/http";
+import { requireAgent } from "./lib/agent-auth";
+import { handleMcpRequest } from "./mcp/server";
+import type { Actor } from "./services/authoring";
 
 type Bindings = AuthBindings;
-export const app = new Hono<{ Bindings: Bindings }>();
+export const app = new Hono<{ Bindings: Bindings; Variables: { agent: Actor } }>();
 
 // Keep request logs useful for operations without recording cookies, query strings, or student input.
 app.use("/api/*", async (c, next) => {
@@ -33,6 +36,8 @@ app.onError((error, c) => {
 });
 
 app.get("/api/health", (c) => c.json({ ok: true }));
+// Remote MCP for authoring agents: bearer agent tokens only, never browser cookies.
+app.all("/api/mcp", requireAgent, (c) => handleMcpRequest(c.req.raw, c.env, c.get("agent")));
 app.route("/api/auth", auth);
 app.route("/api", assets);
 app.route("/api", content);

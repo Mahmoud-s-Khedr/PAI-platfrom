@@ -344,6 +344,22 @@ async function replaceBlockAssetLink(db: D1Database, blockId: number, input: Blo
   await db.batch(statements);
 }
 
+/**
+ * Deletes and re-inserts a lesson's blocks atomically. Asset links of the old
+ * blocks cascade away; new links are found by the (lesson, sort order) pair.
+ */
+export async function replaceAdminLessonBlocks(db: D1Database, lessonId: number, blocks: BlockInput[]): Promise<void> {
+  const statements = [db.prepare("DELETE FROM lesson_blocks WHERE lesson_id = ?").bind(lessonId)];
+  for (const block of blocks) {
+    statements.push(db.prepare(`INSERT INTO lesson_blocks (lesson_id, type, sort_order, data_json, updated_at)
+      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`).bind(lessonId, block.type, block.sortOrder, JSON.stringify(block.data)));
+    const assetId = linkedAssetId(block);
+    if (assetId) statements.push(db.prepare(`INSERT INTO asset_links (asset_id, lesson_block_id)
+      VALUES (?, (SELECT id FROM lesson_blocks WHERE lesson_id = ? AND sort_order = ?))`).bind(assetId, lessonId, block.sortOrder));
+  }
+  await db.batch(statements);
+}
+
 export async function listAdminBlockIds(db: D1Database, lessonId: number): Promise<number[]> {
   const result = await db.prepare("SELECT id FROM lesson_blocks WHERE lesson_id = ? ORDER BY sort_order, id").bind(lessonId).all<{ id: number }>();
   return result.results.map((row) => row.id);
@@ -415,6 +431,27 @@ export async function updateAdminQuestion(db: D1Database, id: number, input: Que
     difficulty = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
     .bind(input.courseId, input.type, JSON.stringify(input.prompt), JSON.stringify(input.answer), JSON.stringify(input.explanation), input.difficulty, input.status, id).run();
   await replaceQuestionLessons(db, id, input.lessonIds);
+}
+
+/**
+ * Creates several questions and their lesson mappings in one D1 batch (one
+ * transaction). Each mapping refers to the question inserted just before it.
+ */
+export async function createAdminQuestionsBatch(db: D1Database, inputs: QuestionInput[]): Promise<number[]> {
+  const statements: D1PreparedStatement[] = [];
+  const insertIndexes: number[] = [];
+  for (const input of inputs) {
+    insertIndexes.push(statements.length);
+    statements.push(db.prepare(`INSERT INTO questions
+      (course_id, type, prompt_json, answer_json, explanation_json, difficulty, status, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id`)
+      .bind(input.courseId, input.type, JSON.stringify(input.prompt), JSON.stringify(input.answer), JSON.stringify(input.explanation), input.difficulty, input.status));
+    for (const lessonId of input.lessonIds) {
+      statements.push(db.prepare("INSERT INTO question_lessons (question_id, lesson_id) VALUES ((SELECT MAX(id) FROM questions), ?)").bind(lessonId));
+    }
+  }
+  const results = await db.batch<{ id: number }>(statements);
+  return insertIndexes.map((index) => results[index].results[0].id);
 }
 
 async function replaceQuestionLessons(db: D1Database, questionId: number, lessonIds: number[]): Promise<void> {

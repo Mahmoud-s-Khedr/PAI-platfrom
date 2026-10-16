@@ -12,6 +12,8 @@ const AdminLessonPage = lazy(() => import("../pages/admin-lesson-page").then((mo
 const AdminQuestionsPage = lazy(() => import("../pages/admin-questions-page").then((module) => ({ default: module.AdminQuestionsPage })));
 const AdminQuestionEditorPage = lazy(() => import("../pages/admin-question-editor-page").then((module) => ({ default: module.AdminQuestionEditorPage })));
 const AdminQuestionPreviewPage = lazy(() => import("../pages/admin-question-preview-page").then((module) => ({ default: module.AdminQuestionPreviewPage })));
+const AdminAgentsPage = lazy(() => import("../pages/admin-agents-page").then((module) => ({ default: module.AdminAgentsPage })));
+const AdminLessonPreviewPage = lazy(() => import("../pages/admin-lesson-preview-page").then((module) => ({ default: module.AdminLessonPreviewPage })));
 const AdminAssetsPage = lazy(() => import("../pages/admin-assets-page").then((module) => ({ default: module.AdminAssetsPage })));
 const CoursePage = lazy(() => import("../pages/course-page").then((module) => ({ default: module.CoursePage })));
 const LessonPage = lazy(() => import("../pages/lesson-page").then((module) => ({ default: module.LessonPage })));
@@ -42,7 +44,9 @@ export function App() {
               <Route path="admin/questions/new" element={<AdminQuestionEditorPage />} />
               <Route path="admin/questions/:questionId/edit" element={<AdminQuestionEditorPage />} />
               <Route path="admin/questions/:questionId/preview" element={<AdminQuestionPreviewPage />} />
+              <Route path="admin/lessons/:lessonId/preview" element={<AdminLessonPreviewPage />} />
               <Route path="admin/assets" element={<AdminAssetsPage />} />
+              <Route path="admin/agents" element={<AdminAgentsPage />} />
               <Route path="courses/:courseSlug" element={<CoursePage />} />
               <Route
                 path="courses/:courseSlug/lessons/:lessonSlug"

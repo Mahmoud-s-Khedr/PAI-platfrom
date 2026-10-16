@@ -1,4 +1,4 @@
-import type { AdminAsset, AdminBlockInput, AdminCourse, AdminCourseInput, AdminDashboard, AdminLesson, AdminLessonBlock, AdminLessonInput, AdminLessonSummary, AdminQuestion, AdminQuestionFilters, AdminQuestionInput, ApiError, AssetKind, AuthUser, Course, Lesson, LessonPageData, LessonSummary, Question, QuestionQueryOptions, SearchResults, SessionResponse } from "./types";
+import type { AgentToken, AuditEntry, CreatedAgentToken, AdminAsset, AdminBlockInput, AdminCourse, AdminCourseInput, AdminDashboard, AdminLesson, AdminLessonBlock, AdminLessonInput, AdminLessonSummary, AdminQuestion, AdminQuestionFilters, AdminQuestionInput, ApiError, AssetKind, AuthUser, Course, Lesson, LessonPageData, LessonSummary, Question, QuestionQueryOptions, SearchResults, SessionResponse } from "./types";
 import { ApiRequestError } from "./errors";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -72,4 +72,9 @@ export const api = {
   adminAssets: () => get<AdminAsset[]>("/api/admin/assets"),
   uploadAdminAsset: (kind: AssetKind, file: File) => { const body = new FormData(); body.set("kind", kind); body.set("file", file); return upload<AdminAsset>("/api/admin/assets", body); },
   deleteAdminAsset: (id: number) => remove(`/api/admin/assets/${id}`),
+  adminLessonPreview: (id: number) => get<LessonPageData>(`/api/admin/lessons/${id}/preview`),
+  agentTokens: () => get<AgentToken[]>("/api/admin/agent-tokens"),
+  createAgentToken: (name: string) => post<CreatedAgentToken>("/api/admin/agent-tokens", { name }),
+  revokeAgentToken: (id: number) => post<AgentToken>(`/api/admin/agent-tokens/${id}/revoke`),
+  auditLog: (limit = 50) => get<AuditEntry[]>(`/api/admin/audit${queryString({ limit })}`),
 };

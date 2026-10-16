@@ -8,12 +8,12 @@ import { NotFoundView } from "../components/not-found-view";
 import { LessonBlock } from "../lesson-blocks/lesson-block";
 import { api } from "../lib/api";
 import { isErrorCode } from "../lib/errors";
-import type { Course, Language, Lesson, LessonSummary, Question } from "../lib/types";
+import type { Language, LessonPageData, LessonSummary } from "../lib/types";
 import { QuestionPractice } from "../question-engine/question-practice";
 import { studentState } from "../storage/student-state";
 import { loadYouTubePlayerApi, youtubeErrorMessage, type YouTubePlayerErrorCode } from "../lib/youtube-player";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 export function LessonVideo({ videoId, title, language }: { videoId: string | null; title: string; language: "ar" | "en" }) {
@@ -73,35 +73,38 @@ function ShareLesson({ title, language }: { title: string; language: Language })
   return <div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => void share()}><Share2 className="size-4" aria-hidden="true" />{copied ? (ar ? "تم نسخ الرابط" : "Link copied") : (ar ? "مشاركة" : "Share")}</Button><Button variant="outline" size="sm" asChild><a href={`https://wa.me/?text=${encodeURIComponent(`${title}\n${url}`)}`} target="_blank" rel="noopener noreferrer">{ar ? "واتساب" : "WhatsApp"}</a></Button></div>;
 }
 
+/** The student lesson screen. `preview` renders a draft for the admin without touching student progress. */
+export function LessonView({ data, language, lessonHref, courseHref, preview = false }: { data: LessonPageData; language: Language; lessonHref: (lesson: LessonSummary) => string; courseHref: string; preview?: boolean }) {
+  const { course, lessons, lesson, questions } = data;
+  const lessonIndex = lessons.findIndex((candidate) => candidate.id === lesson.id);
+  const previousLesson = lessonIndex > 0 ? lessons[lessonIndex - 1] : null;
+  const nextLesson = lessonIndex >= 0 && lessonIndex < lessons.length - 1 ? lessons[lessonIndex + 1] : null;
+  return <section className="mx-auto max-w-4xl space-y-7"><Button asChild variant="ghost" className="w-fit px-0 text-muted-foreground hover:bg-transparent hover:text-primary"><Link to={courseHref}><ArrowLeft className="size-4 rtl:rotate-180" />{course.title[language]}</Link></Button><div className="flex flex-wrap items-start justify-between gap-3"><h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{lesson.title[language]}</h1>{!preview && <ShareLesson title={lesson.title[language]} language={language} />}</div>
+    <LessonVideo key={lesson.id} videoId={lesson.youtubeVideoId} title={lesson.title[language]} language={language} />
+    <article className="space-y-6">{lesson.blocks.map((block) => <LessonBlock key={block.id} block={block} />)}</article>
+    {!preview && <LessonCompletion lessonId={lesson.id} language={language} />}
+    <Separator /><section className="space-y-4"><div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-lg bg-primary/10 text-primary"><ClipboardCheck className="size-5" /></span><h2 className="text-2xl font-semibold">{language === "ar" ? "اختبر فهمك" : "Check your understanding"}</h2></div><QuestionPractice key={lesson.id} questions={questions} /></section>
+    {(previousLesson || nextLesson) && <nav className="flex flex-wrap justify-between gap-3 border-t pt-5" aria-label={language === "ar" ? "التنقل بين الدروس" : "Lesson navigation"}>{previousLesson ? <Button variant="outline" asChild><Link to={lessonHref(previousLesson)}><ArrowLeft className="size-4 rtl:rotate-180" />{language === "ar" ? "الدرس السابق" : "Previous lesson"}</Link></Button> : <span />}{nextLesson ? <Button asChild><Link to={lessonHref(nextLesson)}>{language === "ar" ? "الدرس التالي" : "Next lesson"}<ArrowRight className="size-4 rtl:rotate-180" /></Link></Button> : <span />}</nav>}
+  </section>;
+}
+
 export function LessonPage() {
   const { courseSlug = "", lessonSlug = "" } = useParams();
   const { language } = useLanguage();
-  const [course, setCourse] = useState<Course | null>(null);
-  const [lesson, setLesson] = useState<Lesson | null>(null);
-  const [lessons, setLessons] = useState<LessonSummary[]>([]);
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [data, setData] = useState<LessonPageData | null>(null);
   const [error, setError] = useState<unknown | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   useEffect(() => {
     let current = true;
-    setCourse(null); setLesson(null); setLessons([]); setQuestions([]); setError(null);
-    void api.lessonPage(courseSlug, lessonSlug).then((data) => {
+    setData(null); setError(null);
+    void api.lessonPage(courseSlug, lessonSlug).then((loaded) => {
       if (!current) return;
-      studentState.openLesson({ courseSlug, lessonSlug, lessonId: data.lesson.id });
-      setCourse(data.course); setLessons(data.lessons); setLesson(data.lesson); setQuestions(data.questions);
+      studentState.openLesson({ courseSlug, lessonSlug, lessonId: loaded.lesson.id });
+      setData(loaded);
     }).catch((reason: unknown) => { if (current) setError(reason); });
     return () => { current = false; };
   }, [courseSlug, lessonSlug, loadAttempt]);
-  const lessonIndex = lessons.findIndex((candidate) => candidate.id === lesson?.id);
-  const previousLesson = lessonIndex > 0 ? lessons[lessonIndex - 1] : null;
-  const nextLesson = lessonIndex >= 0 && lessonIndex < lessons.length - 1 ? lessons[lessonIndex + 1] : null;
   if (isErrorCode(error, "COURSE_NOT_FOUND")) return <NotFoundView kind="course" language={language} />;
   if (isErrorCode(error, "LESSON_NOT_FOUND")) return <NotFoundView kind="lesson" language={language} courseSlug={courseSlug} />;
-  return <><PageMetadata title={lesson?.title[language]} description={course ? `${lesson?.title[language] ?? ""} — ${course.title[language]}` : (language === "ar" ? "درس في البرمجة والذكاء الاصطناعي." : "A programming and artificial intelligence lesson.")} language={language} /><AsyncView loading={!error && !lesson} error={error} language={language} onRetry={() => setLoadAttempt((attempt) => attempt + 1)}>{lesson && <section className="mx-auto max-w-4xl space-y-7"><Button asChild variant="ghost" className="w-fit px-0 text-muted-foreground hover:bg-transparent hover:text-primary"><Link to={`/courses/${courseSlug}`}><ArrowLeft className="size-4 rtl:rotate-180" />{course?.title[language] ?? (language === "ar" ? "المقرر" : "Course")}</Link></Button><div className="flex flex-wrap items-start justify-between gap-3"><h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{lesson.title[language]}</h1><ShareLesson title={lesson.title[language]} language={language} /></div>
-    <LessonVideo key={lesson.id} videoId={lesson.youtubeVideoId} title={lesson.title[language]} language={language} />
-    <article className="space-y-6">{lesson.blocks.map((block) => <LessonBlock key={block.id} block={block} />)}</article>
-    <LessonCompletion lessonId={lesson.id} language={language} />
-    <Separator /><section className="space-y-4"><div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-lg bg-primary/10 text-primary"><ClipboardCheck className="size-5" /></span><h2 className="text-2xl font-semibold">{language === "ar" ? "اختبر فهمك" : "Check your understanding"}</h2></div><QuestionPractice key={lesson.id} questions={questions} /></section>
-    {(previousLesson || nextLesson) && <nav className="flex flex-wrap justify-between gap-3 border-t pt-5" aria-label={language === "ar" ? "التنقل بين الدروس" : "Lesson navigation"}>{previousLesson ? <Button variant="outline" asChild><Link to={`/courses/${courseSlug}/lessons/${previousLesson.slug}`}><ArrowLeft className="size-4 rtl:rotate-180" />{language === "ar" ? "الدرس السابق" : "Previous lesson"}</Link></Button> : <span />}{nextLesson ? <Button asChild><Link to={`/courses/${courseSlug}/lessons/${nextLesson.slug}`}>{language === "ar" ? "الدرس التالي" : "Next lesson"}<ArrowRight className="size-4 rtl:rotate-180" /></Link></Button> : <span />}</nav>}
-  </section>}</AsyncView></>;
+  return <><PageMetadata title={data?.lesson.title[language]} description={data ? `${data.lesson.title[language]} — ${data.course.title[language]}` : (language === "ar" ? "درس في البرمجة والذكاء الاصطناعي." : "A programming and artificial intelligence lesson.")} language={language} /><AsyncView loading={!error && !data} error={error} language={language} onRetry={() => setLoadAttempt((attempt) => attempt + 1)}>{data && <LessonView data={data} language={language} courseHref={`/courses/${courseSlug}`} lessonHref={(lesson) => `/courses/${courseSlug}/lessons/${lesson.slug}`} />}</AsyncView></>;
 }

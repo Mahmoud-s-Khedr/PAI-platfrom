@@ -199,3 +199,30 @@ export interface AdminAsset {
   createdAt: string;
   linkedBlockCount: number;
 }
+
+/** A revocable MCP token for one of the teacher's AI agents. The secret is never returned after creation. */
+export interface AgentToken {
+  id: number;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+}
+
+export interface CreatedAgentToken {
+  /** Plaintext `pai_agent_…` token; shown only in this response. */
+  token: string;
+  agent: AgentToken;
+}
+
+export interface AuditEntry {
+  id: number;
+  actorType: "admin" | "agent";
+  actorId: number;
+  actorName: string;
+  action: string;
+  entityType: string;
+  entityId: number | null;
+  summary: string;
+  createdAt: string;
+}

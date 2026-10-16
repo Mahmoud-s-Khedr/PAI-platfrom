@@ -21,6 +21,7 @@
     "db:bootstrap-admin:remote": "node scripts/bootstrap-admin.mjs --remote"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@radix-ui/react-progress": "^1.1.16",
     "@radix-ui/react-radio-group": "^1.4.7",
     "@radix-ui/react-separator": "^1.1.15",

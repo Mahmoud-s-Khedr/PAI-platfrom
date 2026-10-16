@@ -987,6 +987,13 @@ export function AdminLessonPage() {
               <Eye className="size-4" />
               {language === "ar" ? "معاينة الدرس" : "Preview lesson"}
             </Button>
+            {lesson && (
+              <Button variant="outline" asChild>
+                <Link to={`/admin/lessons/${lesson.id}/preview`}>
+                  {language === "ar" ? "عرض كطالب" : "View as student"}
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
         {showPreview && lesson && (

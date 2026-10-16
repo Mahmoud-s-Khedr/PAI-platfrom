@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { BookOpen, CircleHelp, FolderCog, Image, Plus } from "lucide-react";
+import { Bot, BookOpen, CircleHelp, FolderCog, Image, Plus } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useLanguage } from "../app/language";
 import { AsyncView } from "../components/async-view";
@@ -101,7 +101,13 @@ export function AdminPage() {
               {language === "ar" ? "إدارة المحتوى" : "Content management"}
             </h1>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link to="/admin/agents">
+                <Bot className="size-4" />
+                {language === "ar" ? "الوكلاء" : "Agents"}
+              </Link>
+            </Button>
             <Button variant="outline" asChild>
               <Link to="/admin/assets">
                 <Image className="size-4" />
